@@ -1,53 +1,18 @@
+# app/main.py
+
 from fastapi import FastAPI
-from pydantic import BaseModel
-import torch
+from app.core.config import settings
+from app.core.lifecycle import lifespan
+from app.api.v1.api import api_router
 
-app = FastAPI(
-    title="Multi-Model AI Backend",
-    description="FastAPI backend for diffusion, CLIP, and VLM models",
-    version="0.1.0"
-)
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title=settings.APP_NAME,
+        version=settings.API_VERSION,
+        lifespan=lifespan,
+    )
 
-# ---------- Health Check ----------
-@app.get("/")
-def root():
-    return {
-        "status": "running",
-        "device": "cuda" if torch.cuda.is_available() else "cpu"
-    }
+    app.include_router(api_router, prefix="/api/v1")
+    return app
 
-
-# ---------- Example Schemas ----------
-class TextRequest(BaseModel):
-    text: str
-
-
-# ---------- Placeholder Endpoints ----------
-@app.post("/clip/encode")
-def clip_encode(req: TextRequest):
-    # TODO: load & run CLIP model
-    return {
-        "model": "clip",
-        "input": req.text,
-        "embedding_shape": [1, 512]
-    }
-
-
-@app.post("/diffusion/generate")
-def diffusion_generate(req: TextRequest):
-    # TODO: load diffusion pipeline
-    return {
-        "model": "diffusion",
-        "prompt": req.text,
-        "image": "base64_or_path_placeholder"
-    }
-
-
-@app.post("/vlm/infer")
-def vlm_infer(req: TextRequest):
-    # TODO: run VLM inference
-    return {
-        "model": "vlm",
-        "query": req.text,
-        "answer": "placeholder response"
-    }
+app = create_app()
