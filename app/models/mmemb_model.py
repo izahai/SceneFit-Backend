@@ -64,15 +64,14 @@ class MmEmbModel:
     def _normalize(x):
         return F.normalize(x, p=2, dim=-1)
     
-    # -------------------------
-    # Scene Fit Score
-    # -------------------------
-    def score_image(self, image_embedding):
+    def score_image(self, image):
         """
         Returns similarity scores for:
         - positive prompt
         - negative prompt
         """
+        image_embedding = self.encode_image(image)
+
         pos_emb = self.prompt_embeddings[0]
         neg_emb = self.prompt_embeddings[1]
 
@@ -84,3 +83,39 @@ class MmEmbModel:
             "negative_score": neg_score,
             "confidence": pos_score - neg_score,
         }
+    
+    def score_images(self, images):
+        """
+        Calculate confidence scores for a list of images and return
+        results sorted by confidence (descending).
+
+        Args:
+            images: list of images (PIL images or model-compatible inputs)
+
+        Returns:
+            List[dict]: sorted results with scores
+        """
+        # Encode all images at once (batch)
+        image_embeddings = self.encode_image(images)
+
+        results = []
+
+        pos_emb = self.prompt_embeddings[0]
+        neg_emb = self.prompt_embeddings[1]
+
+        for idx, img_emb in enumerate(image_embeddings):
+            pos_score = (img_emb @ pos_emb.T).item()
+            neg_score = (img_emb @ neg_emb.T).item()
+            confidence = pos_score - neg_score
+
+            results.append({
+                "index": idx,
+                "positive_score": pos_score,
+                "negative_score": neg_score,
+                "confidence": confidence,
+            })
+
+        # Sort by confidence (highest first)
+        results.sort(key=lambda x: x["confidence"], reverse=True)
+
+        return results

@@ -4,3 +4,8 @@ fastapi
 onnxruntime
 torch
 transformers
+trimesh 
+pyrender 
+pyglet 
+numpy 
+Pillow
