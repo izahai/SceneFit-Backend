@@ -1,10 +1,15 @@
 # app/services/model_registry.py
 
-from typing import Dict
+from typing import Dict, Any
 from app.models.mmemb_model import MmEmbModel
+from app.models.pe_clip_model import PEClipModel 
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
+
+    @classmethod
+    def register(cls, name: str, model: Any):
+        cls._models[name] = model
 
     @classmethod
     def get(cls, name: str):
@@ -14,8 +19,10 @@ class ModelRegistry:
 
     @staticmethod
     def _load(name: str):
-        if name == "mmEmb":
+        if name == "jina-v4":
             model = MmEmbModel()
+        elif name == "pe":
+            model = PEClipModel()
         else:
             raise ValueError(f"Unknown model: {name}")
 

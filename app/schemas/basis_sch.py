@@ -1,4 +1,16 @@
+# app/schemas/basis_sch.py
+
 from pydantic import BaseModel
+from typing import List
+
+
+class RetrievalItem(BaseModel):
+    index: int
+    positive_score: float
+    negative_score: float
+    confidence: float
+
 
 class RetrievalResponse(BaseModel):
-    clipped_text: str
+    count: int
+    results: List[RetrievalItem]

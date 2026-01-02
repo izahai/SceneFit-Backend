@@ -9,3 +9,9 @@ pyrender
 pyglet 
 numpy 
 Pillow
+pydantic-settings
+uvicorn
+python-multipart
+peft
+xformers
+torchcodec

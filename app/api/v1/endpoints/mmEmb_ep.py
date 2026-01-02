@@ -1,13 +1,62 @@
 # app/api/v1/endpoints/clip_ep.py
 
-from fastapi import APIRouter
-from fastapi import UploadFile, File, Form
-from app.schemas.basis_sch import RetrievalResponse
+import os
+import uuid
+from pathlib import Path
+from fastapi import APIRouter, UploadFile, File, Form
+
+from app.services.img_processor import compose_2d_on_background
 from app.services.model_registry import ModelRegistry
+from app.schemas.basis_sch import RetrievalResponse
 
 router = APIRouter()
 
+BG_DIR = Path("app/uploads/bg")
+BG_DIR.mkdir(parents=True, exist_ok=True)
+
 @router.post("/mmEmb", response_model=RetrievalResponse)
-def retrieve_by_mmEmb(image: UploadFile = File(...)):
+def retrieve_best_matched_figures(
+    image: UploadFile = File(...),
+    top_k: int = Form(5),
+    scale: float = Form(1.0),
+):
+    """
+    Given a background/figure image, compose it with all 2D clothes,
+    score them using MmEmbModel, and return the best matches.
+    """
+
+    # ------------------------------------------------------------------
+    # 1. Save uploaded image temporarily
+    # ------------------------------------------------------------------
+    suffix = Path(image.filename).suffix or ".png"
+    bg_filename = f"{uuid.uuid4().hex}{suffix}"
+    bg_path = BG_DIR / bg_filename
+
+    with open(bg_path, "wb") as f:
+        f.write(image.file.read())
+
+    # ------------------------------------------------------------------
+    # 2. Compose background with all foreground candidates
+    # ------------------------------------------------------------------
+    images = compose_2d_on_background(
+        bg_path=bg_path,
+        fg_dir="app/clothes/2d",
+        scale=scale,
+        return_format="pil",
+    )
+
+    # ------------------------------------------------------------------
+    # 3. Score images with MM Embedding model
+    # ------------------------------------------------------------------
     model = ModelRegistry.get("mmEmb")
-    return model.retrieve(image.file)
+    scores = model.score_images(images)
+
+    # ------------------------------------------------------------------
+    # 4. Select top-K results
+    # ------------------------------------------------------------------
+    top_results = scores[:top_k]
+
+    return {
+        "count": len(top_results),
+        "results": top_results,
+    }
