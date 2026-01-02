@@ -12,6 +12,7 @@ def remove_background(input_path, output_path):
     with open(output_path, "wb") as f:
         f.write(output_image)
 
+# --- CLI Testing ---
 # python - << 'EOF'
 # from app.services.img_processor import remove_background
 # import os
