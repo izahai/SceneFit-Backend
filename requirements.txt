@@ -2,3 +2,5 @@ rembg
 pillow
 fastapi
 onnxruntime
+torch
+transformers
