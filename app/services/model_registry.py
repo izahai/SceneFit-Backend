@@ -1,7 +1,7 @@
+# app/services/model_registry.py
+
 from typing import Dict
-from app.models.clip_model import CLIPModel
-from app.models.diffusion_model import DiffusionModel
-from app.models.vl_model import VLMModel
+from app.models.mmemb_model import MmEmbModel
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
@@ -14,12 +14,8 @@ class ModelRegistry:
 
     @staticmethod
     def _load(name: str):
-        if name == "clip":
-            model = CLIPModel()
-        # elif name == "diffusion":
-        #     model = DiffusionModel()
-        # elif name == "vlm":
-        #     model = VLMModel()
+        if name == "mmEmb":
+            model = MmEmbModel()
         else:
             raise ValueError(f"Unknown model: {name}")
 
