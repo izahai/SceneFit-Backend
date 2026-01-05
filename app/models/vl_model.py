@@ -14,14 +14,14 @@ class VLModel:
         max_new_tokens: int = 384,
     ):
         self.model_name = model_name
-        self.device = resolve_device(device)
-        self.dtype = resolve_dtype(self.device)
+        #self.device = resolve_device(device)
+        #self.dtype = resolve_dtype(self.device)
         self.max_new_tokens = max_new_tokens
 
         self.processor = AutoProcessor.from_pretrained(self.model_name)
         self.model = Qwen3VLForConditionalGeneration.from_pretrained(
             self.model_name,
-            torch_dtype=self.dtype,
+            dtype="auto",
             device_map="auto",
         )
         self.model.eval()
@@ -42,6 +42,7 @@ class VLModel:
             return_dict=True,
         ).to(self.model.device)
 
+        print("Generating ...")
         output_ids = self.model.generate(
             **inputs,
             max_new_tokens=self.max_new_tokens,
@@ -88,8 +89,10 @@ class VLModel:
         ]
 
         output = self._generate(messages).strip()
+        print(output)
 
         paragraphs = [p.strip() for p in output.split("\n") if p.strip()]
+        print(paragraphs)
 
         # Ensure exactly 3 outputs
         if len(paragraphs) > 3:
