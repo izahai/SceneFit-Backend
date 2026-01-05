@@ -2,6 +2,8 @@
 
 import torch
 from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
+from PIL import Image
+
 from app.utils.device import resolve_device, resolve_dtype
 from app.utils.util import load_prompt_by_key
 
@@ -63,10 +65,13 @@ class VLModel:
     # -------------------------
     # Image → clothing captions
     # -------------------------
-    def generate_clothing_from_image(self, image_url: str) -> list[str]:
+    def generate_clothing_from_image(self, image_path: str) -> list[str]:
         """
         Given an image URL, generate 3 clothing descriptions.
         """
+        
+        image = Image.open(image_path).convert("RGB")
+
 
         messages = [
             {
@@ -83,7 +88,7 @@ class VLModel:
                 "content": [
                     {
                         "type": "image",
-                        "image": image_url,
+                        "image": image,
                     },
                     {
                         "type": "text",
