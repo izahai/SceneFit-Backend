@@ -71,7 +71,12 @@ class VLModel:
         messages = [
             {
                 "role": "system",
-                "content": self.system_role,
+                "content": [
+                    {
+                        "type": "text",
+                        "text": self.system_role,
+                    }
+                ],
             },
             {
                 "role": "user",
