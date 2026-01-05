@@ -11,12 +11,11 @@ class VLModel:
         self,
         model_name: str = "Qwen/Qwen3-VL-4B-Instruct",
         device: str | None = None,
-        dtype: torch.dtype | None = None,
         max_new_tokens: int = 384,
     ):
         self.model_name = model_name
         self.device = resolve_device(device)
-        self.dtype = resolve_dtype(self.device, dtype)
+        self.dtype = resolve_dtype(self.device)
         self.max_new_tokens = max_new_tokens
 
         self.processor = AutoProcessor.from_pretrained(self.model_name)
