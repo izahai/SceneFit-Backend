@@ -8,3 +8,6 @@ ConventionalCommits.txt
 bg_test.png
 final.png
 front_view.png
+app/outputs/*
+app/uploads/*
+app/data/*

@@ -1,5 +1,7 @@
 # app/utils/device.py
 
+# app/utils/device.py
+
 import torch
 
 def resolve_device(device: str | None = None) -> torch.device:
@@ -15,15 +17,12 @@ def resolve_device(device: str | None = None) -> torch.device:
     return torch.device("cpu")
 
 
-def resolve_dtype(
-    device: torch.device,
-    dtype: torch.dtype | None = None,
-) -> torch.dtype:
-    if dtype is not None:
-        return dtype
+def resolve_autocast(device: torch.device) -> bool:
+    return device.type in ("cuda", "mps")
 
+
+def resolve_dtype(device: torch.device) -> torch.dtype:
     if device.type == "cuda":
-        # Prefer bf16 if supported (A100/H100/RTX 40xx)
         if torch.cuda.is_bf16_supported():
             return torch.bfloat16
         return torch.float16
@@ -31,5 +30,4 @@ def resolve_dtype(
     if device.type == "mps":
         return torch.float16
 
-    # CPU: always fp32 for safety
     return torch.float32

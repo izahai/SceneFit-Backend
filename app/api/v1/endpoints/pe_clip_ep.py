@@ -19,12 +19,10 @@ BG_DIR.mkdir(parents=True, exist_ok=True)
 def retrieve_best_matched_figures_pe(
     image: UploadFile = File(...),
     top_k: int = Form(5),
-    scale: float = Form(1.0),
 ):
     """
     PE-Core version of image retrieval.
     """
-
     # -------------------------------------------------
     # 1. Save uploaded background
     # -------------------------------------------------
@@ -38,18 +36,17 @@ def retrieve_best_matched_figures_pe(
     # -------------------------------------------------
     # 2. Compose candidate images
     # -------------------------------------------------
-    images = compose_2d_on_background(
+    items = compose_2d_on_background(
         bg_path=bg_path,
-        fg_dir="app/clothes/2d",
-        scale=scale,
+        fg_dir="app/data/2d",
         return_format="pil",
     )
 
     # -------------------------------------------------
     # 3. Score using PE-Core model
     # -------------------------------------------------
-    model = ModelRegistry.get("pe_clip")
-    scores = model.score_images(images)
+    model = ModelRegistry.get("pe")
+    scores = model.score_images(items)
 
     # -------------------------------------------------
     # 4. Top-K

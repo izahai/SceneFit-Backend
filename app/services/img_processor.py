@@ -3,6 +3,9 @@
 from rembg import remove
 from PIL import Image
 import numpy as np
+import json
+from typing import Tuple, List
+import os
 
 def remove_background(input_path, output_path):
     with open(input_path, "rb") as f:
@@ -79,49 +82,48 @@ def paste_centered(
 # print("[Complete] Image compositing passed")
 # EOF
 
-import os
-from typing import List
-from PIL import Image
-
-
 def compose_2d_on_background(
     bg_path: str,
-    fg_dir: str = "app/clothes/2d",
+    fg_dir: str = "app/data/2d",
+    clothes_json: str = "app/data/clothes.json",
     scale: float = 1.0,
     return_format: str = "pil",  # "pil" | "numpy"
-):
+    output_dir: str = "app/outputs/composed",
+) -> List[Tuple[str, Image.Image]]:
     """
-    Paste all foreground images in fg_dir centered on the background image
-    and return them in a format suitable for embedding models.
-
-    Args:
-        bg_path: Path to background image
-        fg_dir: Directory containing foreground PNGs (RGBA)
-        scale: Scale factor for foreground images
-        return_format: "pil" or "numpy"
-
-    Returns:
-        List of images (PIL.Image or np.ndarray)
+    Paste foreground images listed in clothes.json centered on the background image.
+    Saves all composed images into outputs/composed using the figure name.
+    Returns (filename, image).
     """
+
     bg_original = Image.open(bg_path).convert("RGBA")
-
     results = []
 
-    fg_files = sorted(
-        f for f in os.listdir(fg_dir)
-        if f.lower().endswith((".png", ".jpg", ".jpeg"))
-    )
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # -------------------------------------------------
+    # Load clothes.json (list[str])
+    # -------------------------------------------------
+    with open(clothes_json, "r") as f:
+        fg_files: List[str] = json.load(f)
 
     if not fg_files:
-        raise RuntimeError(f"No images found in {fg_dir}")
+        raise RuntimeError("clothes.json is empty")
 
+    # -------------------------------------------------
+    # Process each foreground image
+    # -------------------------------------------------
     for fg_file in fg_files:
         fg_path = os.path.join(fg_dir, fg_file)
+
+        # Skip missing files
+        if not os.path.isfile(fg_path):
+            continue
 
         fg = Image.open(fg_path).convert("RGBA")
         bg = bg_original.copy()
 
-        # Scale foreground if needed
         if scale != 1.0:
             fg_w, fg_h = fg.size
             fg = fg.resize(
@@ -132,21 +134,32 @@ def compose_2d_on_background(
         bg_w, bg_h = bg.size
         fg_w, fg_h = fg.size
 
-        # Center position
         x = (bg_w - fg_w) // 2
         y = (bg_h - fg_h) // 2
 
         bg.paste(fg, (x, y), fg)
 
+        # -------------------------------------------------
+        # SAVE composed image
+        # -------------------------------------------------
+        # output_path = os.path.join(output_dir, fg_file)
+        # bg.save(output_path)
+
+        # -------------------------------------------------
+        # RETURN formats
+        # -------------------------------------------------
         if return_format == "pil":
-            results.append(bg)
+            results.append((fg_file, bg))
 
         elif return_format == "numpy":
-            results.append(
-                np.array(bg.convert("RGB"))
-            )
+            results.append((fg_file, np.array(bg.convert("RGB"))))
 
         else:
             raise ValueError("return_format must be 'pil' or 'numpy'")
+
+    if not results:
+        raise RuntimeError(
+            "No valid foreground images found (all files missing?)"
+        )
 
     return results

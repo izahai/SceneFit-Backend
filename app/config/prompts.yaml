@@ -1,3 +1,3 @@
 outfit_match:
-  positive: "a person wearing an outfit that matches the background, colors, and style"
-  negative: "a person wearing a formal outfit that does not match the background, colors, and style"
+  positive: "clothing that complement the background."
+  negative: "clothing that clash with the background."

@@ -13,5 +13,7 @@ pydantic-settings
 uvicorn
 python-multipart
 peft
-xformers
 torchcodec
+einops
+timm
+ftfy

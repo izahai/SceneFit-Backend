@@ -5,7 +5,7 @@ from typing import List
 
 
 class RetrievalItem(BaseModel):
-    index: int
+    name_clothes: str
     positive_score: float
     negative_score: float
     confidence: float

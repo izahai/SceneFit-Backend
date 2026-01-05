@@ -39,8 +39,8 @@ def main(
 
 if __name__ == "__main__":
     main(
-        input_folder="app/clothes/glb",      # 👈 folder with .glb files
-        output_folder="app/clothes/2d", # 👈 where .png files go
-        image_size=(600, 1200),
+        input_folder="app/data/glb",      # 👈 folder with .glb files
+        output_folder="app/data/2d", # 👈 where .png files go
+        image_size=(1200, 1200),
         camera_distance_factor=1.0
     )
