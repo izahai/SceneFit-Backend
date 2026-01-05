@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from PIL import Image
 
-_PROMPT_CONFIG_PATH = Path("app/config/prompts2.yaml")
+_PROMPT_CONFIG_PATH = Path("app/config/prompts.yaml")
 _CLOTHES_JSON = Path("app/data/clothes.json")
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
 
