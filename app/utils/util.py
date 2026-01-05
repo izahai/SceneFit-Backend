@@ -22,6 +22,15 @@ def load_prompts(task: str) -> list[str]:
     prompts = data[task]
     return [prompts["positive"], prompts["negative"]]
 
+def load_prompt_by_key(key: str) -> str:
+    with open(_PROMPT_CONFIG_PATH, "r") as f:
+        data = yaml.safe_load(f)
+
+    if key not in data:
+        raise KeyError(f"Prompt key '{key}' not found in prompts.yaml")
+
+    return data[key]
+
 @lru_cache(maxsize=1)
 def get_clothes_list() -> List[str]:
     with open(_CLOTHES_JSON, "r") as f:

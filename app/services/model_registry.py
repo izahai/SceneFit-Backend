@@ -3,6 +3,7 @@
 from typing import Dict, Any
 from app.models.mmemb_model import MmEmbModel
 from app.models.pe_clip_model import PEClipModel 
+from app.models.vl_model import VLModel
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
@@ -23,6 +24,8 @@ class ModelRegistry:
             model = MmEmbModel()
         elif name == "pe":
             model = PEClipModel()
+        elif name == "vlm":
+            model = VLModel()
         else:
             raise ValueError(f"Unknown model: {name}")
 
