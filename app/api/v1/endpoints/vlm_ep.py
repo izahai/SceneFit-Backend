@@ -8,7 +8,6 @@ from PIL import Image
 
 from app.services.img_processor import compose_2d_on_background
 from app.services.model_registry import ModelRegistry
-from app.schemas.basis_sch import RetrievalResponse
 from app.utils.util import load_str_images_from_folder
 
 router = APIRouter()
@@ -36,7 +35,7 @@ def get_suggested_clothes_txt(
         "res": res,
     }
     
-@router.post("/vlm-suggested-clothes", response_model=RetrievalResponse)
+@router.post("/vlm-suggested-clothes")
 def get_suggested_clothes(image: UploadFile = File(...)):
     """
     1. Upload image

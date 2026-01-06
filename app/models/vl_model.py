@@ -4,7 +4,7 @@ import torch
 from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
 from PIL import Image
 from transformers import TextIteratorStreamer
-import threading
+import gc
 
 from app.utils.device import resolve_device, resolve_dtype
 from app.utils.util import load_prompt_by_key
@@ -57,6 +57,12 @@ class VLModel:
         )[0]
 
         print("\n[Qwen] Assistant:\n", output, "\n", flush=True)
+        
+        del generated_ids
+        del inputs
+        torch.cuda.empty_cache()
+        gc.collect()
+        
         return output.strip()
     
     def resize_image(
