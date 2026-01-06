@@ -9,11 +9,12 @@ from PIL import Image
 from app.services.img_processor import compose_2d_on_background
 from app.services.model_registry import ModelRegistry
 from app.schemas.basis_sch import RetrievalResponse
-from app.utils.util import load_images_from_folder
+from app.utils.util import load_str_images_from_folder
 
 router = APIRouter()
 
 BG_DIR = Path(__file__).resolve().parents[3] / "uploads/bg"
+CLOTHES_DIR = Path(__file__).resolve().parents[3] / "data/2d"
 BG_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -62,7 +63,7 @@ def get_suggested_clothes(image: UploadFile = File(...)):
     # -------------------------
     # Load clothes images
     # -------------------------
-    clothes_images = load_images_from_folder("app/data/2d")
+    clothes_images = load_str_images_from_folder(CLOTHES_DIR)
     clothes = [
         (img_path.stem, Image.open(img_path).convert("RGB"))
         for img_path in clothes_images

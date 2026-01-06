@@ -79,3 +79,12 @@ def load_images_from_folder(
         raise RuntimeError(f"No valid images found in {folder}")
 
     return images
+
+def load_str_images_from_folder(folder: str):
+    if not folder.exists():
+        raise FileNotFoundError(folder)
+
+    return [
+        p for p in folder.iterdir()
+        if p.suffix.lower() in {".png", ".jpg", ".jpeg"}
+    ]
