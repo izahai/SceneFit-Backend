@@ -4,10 +4,12 @@ import os
 import uuid
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Form
+from PIL import Image
 
 from app.services.img_processor import compose_2d_on_background
 from app.services.model_registry import ModelRegistry
 from app.schemas.basis_sch import RetrievalResponse
+from app.utils.util import load_images_from_folder
 
 router = APIRouter()
 
@@ -19,12 +21,6 @@ BG_DIR.mkdir(parents=True, exist_ok=True)
 def get_suggested_clothes_txt(
     image: UploadFile = File(...),
 ):
-    """
-    PE-Core version of image retrieval.
-    """
-    # -------------------------------------------------
-    # 1. Save uploaded background
-    # -------------------------------------------------
     suffix = Path(image.filename).suffix or ".png"
     bg_filename = f"{uuid.uuid4().hex}{suffix}"
     bg_path = BG_DIR / bg_filename
@@ -37,4 +33,55 @@ def get_suggested_clothes_txt(
 
     return {
         "res": res,
+    }
+    
+@router.post("/vlm-suggested-clothes", response_model=RetrievalResponse)
+def get_suggested_clothes(image: UploadFile = File(...)):
+    """
+    1. Upload image
+    2. VLM generates clothing descriptions
+    3. PE-CLIP ranks clothes by similarity
+    """
+
+    # -------------------------
+    # Save uploaded image
+    # -------------------------
+    suffix = Path(image.filename).suffix or ".png"
+    bg_filename = f"{uuid.uuid4().hex}{suffix}"
+    bg_path = BG_DIR / bg_filename
+
+    with open(bg_path, "wb") as f:
+        f.write(image.file.read())
+
+    # -------------------------
+    # Generate clothing text (VLM)
+    # -------------------------
+    vlm = ModelRegistry.get("vlm")
+    descriptions = vlm.generate_clothing_from_image(bg_path)
+
+    # -------------------------
+    # Load clothes images
+    # -------------------------
+    clothes_images = load_images_from_folder("app/data/2d")
+    clothes = [
+        (img_path.stem, Image.open(img_path).convert("RGB"))
+        for img_path in clothes_images
+    ]
+
+    # -------------------------
+    # CLIP matching
+    # -------------------------
+    matcher = ModelRegistry.get("pe_clip_matcher")
+    results = matcher.match_clothes(
+        descriptions=descriptions,
+        clothes=clothes,
+        top_k=10,
+    )
+
+    # -------------------------
+    # Response
+    # -------------------------
+    return {
+        "query": descriptions,
+        "results": results,
     }

@@ -4,6 +4,7 @@ from typing import Dict, Any
 from app.models.mmemb_model import MmEmbModel
 from app.models.pe_clip_model import PEClipModel 
 from app.models.vl_model import VLModel
+from app.models.pe_clip_matcher import PEClipMatcher
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
@@ -26,6 +27,8 @@ class ModelRegistry:
             model = PEClipModel()
         elif name == "vlm":
             model = VLModel()
+        elif name == "pe_clip_matcher":
+            model = PEClipMatcher()
         else:
             raise ValueError(f"Unknown model: {name}")
 
