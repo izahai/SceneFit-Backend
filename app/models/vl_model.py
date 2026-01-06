@@ -42,33 +42,42 @@ class VLModel:
             return_tensors="pt",
         ).to(self.model.device)
 
-        streamer = TextIteratorStreamer(
-            self.processor.tokenizer,
-            skip_special_tokens=True,
-            clean_up_tokenization_spaces=False,
-        )
-
-        generation_kwargs = dict(
+        generated_ids = self.model.generate(
             **inputs,
             max_new_tokens=self.max_new_tokens,
             do_sample=True,
             temperature=0.7,
             top_p=0.9,
-            streamer=streamer,
         )
 
-        thread = threading.Thread(
-            target=self.model.generate,
-            kwargs=generation_kwargs,
-        )
-        thread.start()
+        output = self.processor.batch_decode(
+            generated_ids[:, inputs.input_ids.shape[1]:],
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )[0]
 
-        generated_text = ""
-        for token in streamer:
-            generated_text += token
+        print("\n[Qwen] Assistant:\n", output, "\n", flush=True)
+        return output.strip()
+    
+    def resize_image(
+        self,
+        image: Image.Image,
+        max_side: int = 1024,
+    ) -> Image.Image:
+        """
+        Resize image so that the longest side == max_side
+        while preserving aspect ratio.
+        """
 
-        thread.join()
-        return generated_text.strip()
+        w, h = image.size
+        if max(w, h) <= max_side:
+            return image
+
+        scale = max_side / max(w, h)
+        new_size = (int(w * scale), int(h * scale))
+
+        return image.resize(new_size, Image.BICUBIC)
+
 
     # -------------------------
     # Image → clothing captions
@@ -79,6 +88,7 @@ class VLModel:
         """
 
         image = Image.open(image_path).convert("RGB")
+        image = self.resize_image(image, max_side=1024)
 
         messages = [
             {
@@ -96,11 +106,5 @@ class VLModel:
 
         output = self._generate(messages)
 
-        paragraphs = [
-            p.strip()
-            for p in output.splitlines()
-            if p.strip()
-        ]
-
-        # Ensure exactly 3 outputs
+        paragraphs = [p.strip() for p in output.splitlines() if p.strip()]
         return (paragraphs + ["", "", ""])[:3]
