@@ -3,6 +3,8 @@
 import torch
 from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
 from PIL import Image
+from transformers import TextIteratorStreamer
+import threading
 
 from app.utils.device import resolve_device, resolve_dtype
 from app.utils.util import load_prompt_by_key
@@ -44,23 +46,38 @@ class VLModel:
             return_dict=True,
         ).to(self.model.device)
 
-        print("Generating ...")
-        output_ids = self.model.generate(
+        streamer = TextIteratorStreamer(
+            self.processor.tokenizer,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )
+
+        generation_kwargs = dict(
             **inputs,
             max_new_tokens=self.max_new_tokens,
             do_sample=True,
             temperature=0.7,
             top_p=0.9,
+            streamer=streamer,
         )
 
-        # Remove prompt tokens
-        generated_ids = output_ids[:, inputs.input_ids.shape[-1]:]
+        print("\n[Qwen] Assistant:", end=" ", flush=True)
 
-        return self.processor.batch_decode(
-            generated_ids,
-            skip_special_tokens=True,
-            clean_up_tokenization_spaces=False,
-        )[0]
+        # Run generation in a background thread
+        thread = threading.Thread(
+            target=self.model.generate,
+            kwargs=generation_kwargs,
+        )
+        thread.start()
+
+        generated_text = ""
+        for new_text in streamer:
+            print(new_text, end="", flush=True)
+            generated_text += new_text
+
+        print("\n")  # newline after completion
+        return generated_text.strip()
+
 
     # -------------------------
     # Image → clothing captions
