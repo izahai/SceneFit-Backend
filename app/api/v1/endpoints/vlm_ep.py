@@ -13,7 +13,7 @@ from app.utils.util import load_images_from_folder
 
 router = APIRouter()
 
-BG_DIR = Path("app/uploads/bg")
+BG_DIR = Path(__file__).resolve().parents[3] / "uploads/bg"
 BG_DIR.mkdir(parents=True, exist_ok=True)
 
 
