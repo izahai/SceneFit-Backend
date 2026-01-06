@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from PIL import Image
 
+BASE_DIR = Path(__file__).resolve().parents[2]
+
 _PROMPT_CONFIG_PATH = Path("app/config/prompts.yaml")
 _CLOTHES_JSON = Path("app/data/clothes.json")
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
@@ -52,7 +54,7 @@ def load_images_from_folder(
     Returns:
         List[PIL.Image.Image]
     """
-    folder = Path(folder)
+    folder = BASE_DIR / folder
     if not folder.exists():
         raise FileNotFoundError(f"Folder does not exist: {folder}")
 
