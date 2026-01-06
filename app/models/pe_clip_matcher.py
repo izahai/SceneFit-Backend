@@ -22,7 +22,7 @@ class PEClipMatcher:
 
     def __init__(
         self,
-        config_name: str = "PE-Core-L14-336",
+        config_name: str = "PE-Core-B16-224",
         device: str | None = None,
         autocast: bool = True,
     ):
