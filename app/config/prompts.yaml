@@ -10,7 +10,7 @@ system_role: |
 
 vlm_task: |
   Task:
-  Generate exactly 3 short paragraphs.
+  Generate exactly a short paragraphs.
   Each paragraph should describe a different outfit suitable for this scene.
   Do not number them.
   Separate each paragraph with a single newline.
