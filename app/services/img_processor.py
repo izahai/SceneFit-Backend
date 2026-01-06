@@ -1,20 +1,20 @@
 # app/services/img_processor.py
 
-from rembg import remove
+# from rembg import remove
 from PIL import Image
 import numpy as np
 import json
 from typing import Tuple, List
 import os
 
-def remove_background(input_path, output_path):
-    with open(input_path, "rb") as f:
-        input_image = f.read()
+# def remove_background(input_path, output_path):
+#     with open(input_path, "rb") as f:
+#         input_image = f.read()
 
-    output_image = remove(input_image)
+#     output_image = remove(input_image)
 
-    with open(output_path, "wb") as f:
-        f.write(output_image)
+#     with open(output_path, "wb") as f:
+#         f.write(output_image)
 
 # --- CLI Test ---
 # python - << 'EOF'
