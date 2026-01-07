@@ -99,37 +99,42 @@ class PEClipMatcher:
     @torch.no_grad()
     def match_clothes(
         self,
-        descriptions: List[str],
-        clothes: List[Tuple[str, Image.Image]],
+        descriptions: list[str],
+        clothes: list[tuple[str, Image.Image]],
         top_k: int | None = None,
     ):
         """
-        descriptions: AI-generated text (from VLM)
+        descriptions: list of AI-generated text strings
         clothes: [(name, PIL.Image)]
         """
 
         # -------------------------
-        # Encode text (mean pooled)
+        # Encode text (per string)
         # -------------------------
-        text_embs = self.encode_text(descriptions)
-        text_emb = text_embs.mean(dim=0, keepdim=True)
-        text_emb = F.normalize(text_emb, dim=-1)
+        text_embs = self.encode_text(descriptions)      # (N_text, D)
+        text_embs = F.normalize(text_embs, dim=-1)
 
         # -------------------------
         # Encode images
         # -------------------------
         names, images = zip(*clothes)
-        image_embs = self.encode_image(list(images))
+        image_embs = self.encode_image(list(images))    # (N_img, D)
+        image_embs = F.normalize(image_embs, dim=-1)
 
         # -------------------------
-        # Similarity
+        # Similarity: image ↔ all texts
         # -------------------------
-        scores = (text_emb @ image_embs.T).squeeze(0)
+        # (N_img, D) @ (D, N_text) → (N_img, N_text)
+        sim_matrix = image_embs @ text_embs.T
+
+        # For each image, take the best matching description
+        best_scores, best_text_idx = sim_matrix.max(dim=1)
 
         results = [
             {
                 "name_clothes": names[i],
-                "similarity": float(scores[i]),
+                "similarity": float(best_scores[i]),
+                "best_description": descriptions[best_text_idx[i]],
             }
             for i in range(len(names))
         ]
