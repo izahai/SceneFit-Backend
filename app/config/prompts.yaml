@@ -26,3 +26,23 @@ vlm_task: |
   Include upper-body garments, lower-body garments, and footwear when possible.
   Separate each paragraph with a single newline.
   Do not include numbering or meta commentary.
+
+clothes_caption: |
+  You are given an clothes image.
+
+  Describe the clothing item.
+
+  Rules:
+  - Focus only on the clothing item itself.
+  - Do NOT describe people, body parts, background, lighting, or pose.
+  - Do NOT mention the image, camera, or photo.
+  - Be specific about:
+    - clothing type (e.g., shirt, jacket, dress, pants)
+    - color(s)
+    - material or fabric (if visible)
+    - fit or silhouette (e.g., slim-fit, oversized, cropped)
+    - notable design details (e.g., buttons, zipper, collar, pattern)
+
+  Each description must be a single paragraph.
+  Do not number the sentences.
+  Do not add any extra text.

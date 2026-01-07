@@ -28,6 +28,7 @@ class VLModel:
 
         self.system_role = load_prompt_by_key("system_role")
         self.vlm_task = load_prompt_by_key("vlm_task")
+        self.clothes_caption = load_prompt_by_key("clothes_caption")
 
     # -------------------------
     # Core generation helper
@@ -114,3 +115,22 @@ class VLModel:
 
         paragraphs = [p.strip() for p in output.splitlines() if p.strip()]
         return (paragraphs + ["", "", ""])[:3]
+    
+    def generate_clothes_caption(self, image_path: str) -> list[str]:
+
+        image = Image.open(image_path).convert("RGB")
+        image = self.resize_image(image, max_side=1024)
+
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": self.clothes_caption},
+                ],
+            },
+        ]
+
+        output = self._generate(messages)
+
+        return " ".join(output.strip().split())

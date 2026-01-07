@@ -33,7 +33,7 @@ def main(
                 camera_distance_factor=camera_distance_factor
             )
         except Exception as e:
-            print(f"❌ Failed to render {glb_file}: {e}")
+            print(f"Failed to render {glb_file}: {e}")
 
     print("✅ Rendering complete.")
 
