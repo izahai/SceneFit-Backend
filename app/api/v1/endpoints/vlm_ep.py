@@ -11,7 +11,7 @@ from app.utils.util import load_str_images_from_folder
 
 router = APIRouter()
 
-BG_DIR = "app/uploads/bg"
+BG_DIR = Path("app/uploads/bg")
 CLOTHES_DIR = "app/data/2d"
 BG_DIR.mkdir(parents=True, exist_ok=True)
 
