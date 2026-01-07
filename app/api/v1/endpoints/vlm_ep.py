@@ -3,17 +3,16 @@
 import os
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File
 from PIL import Image
 
-from app.services.img_processor import compose_2d_on_background
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
 
 router = APIRouter()
 
-BG_DIR = Path(__file__).resolve().parents[3] / "uploads/bg"
-CLOTHES_DIR = Path(__file__).resolve().parents[3] / "data/2d"
+BG_DIR = "app/uploads/bg"
+CLOTHES_DIR = "app/data/2d"
 BG_DIR.mkdir(parents=True, exist_ok=True)
 
 
