@@ -46,3 +46,14 @@ clothes_caption: |
   Each description must be a single paragraph.
   Do not number the sentences.
   Do not add any extra text.
+
+bg_caption: |
+  Describe the background and context in a way that helps choose suitable clothing.
+  Focus on:
+  - Setting (indoor/outdoor, location, environment)
+  - Season and weather (if inferable)
+  - Lighting and mood
+  - Activity or occasion (casual, formal, sport, travel, etc.)
+  - Overall color tone and style of the scene
+
+  Write ONE concise sentence and NOT use bullet points or line breaks.

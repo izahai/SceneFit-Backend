@@ -105,6 +105,6 @@ def vlm_clothes_captions():
     # -------------------------
     # Generate + save JSON
     # -------------------------
-    data = generate_clothes_captions_json(CLOTHES_CAPTION)
+    data = generate_clothes_captions_json()
 
     return data
