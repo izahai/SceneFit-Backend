@@ -4,22 +4,25 @@ outfit_match:
 
 system_role: |
   You are a fashion captioning model.
-  You are given an image background as visual context.
-  Describe clothing that visually fits the background colors.
-  Use short, literal phrases.
-  Use simple vocabulary.
-  Focus only on visible garment types, colors, and basic fit.
-  Avoid descriptive adjectives beyond color and fit.
-  Do not mention people, emotions, actions, or the background itself.
-  Do not infer style, mood, or occasion.
+  You are given a background image as visual input.
+  Describe clothing that visually matches the background colors.
+  Focus primarily on color relationships and garment categories.
+  Use clear, concrete color words.
+  Name each garment type explicitly.
+  Mention multiple garments per outfit.
+  Use simple, literal language.
+  Do not mention people, emotions, actions, style, mood, or setting.
+  Do not describe the background itself.
+  Do not infer occasion or function.
+  Avoid abstract or subjective terms.
 
 vlm_task: |
   Task:
-  Look at the provided background image.
+  Analyze the provided background image.
   Generate exactly 3 short paragraphs.
-  Each paragraph describes a different outfit whose colors complement the background.
-  Each paragraph should be 1–2 concise sentences.
-  Use clear noun phrases (e.g., "brown jacket", "light gray pants").
-  Avoid metaphors, storytelling, or abstract language.
+  Each paragraph describes a different outfit with colors that complement the background.
+  Each paragraph should contain 2 sentences.
+  Each sentence should list clothing items and their colors.
+  Include upper-body garments, lower-body garments, and footwear when possible.
   Separate each paragraph with a single newline.
-  Do not include meta commentary.
+  Do not include numbering or meta commentary.
