@@ -18,17 +18,58 @@ CLOTHES_DIR = Path("app/data/2d")
 CLOTHES_CAPTION = Path("app/data/clothes_captions.json")
 BG_DIR.mkdir(parents=True, exist_ok=True)
 
+def _save_upload(image: UploadFile) -> Path:
+    suffix = Path(image.filename).suffix or ".png"
+    bg_filename = f"{time.time_ns()}{suffix}"
+    bg_path = BG_DIR / bg_filename
+    with open(bg_path, "wb") as f:
+        f.write(image.file.read())
+    return bg_path
+
+def _load_clothes_captions() -> dict:
+    if CLOTHES_CAPTION.exists():
+        with open(CLOTHES_CAPTION, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return generate_clothes_captions_json()
+
+def _tournament_select(vlm, background_caption: str, clothes_captions: dict) -> str | None:
+    if not clothes_captions:
+        return None
+    candidates = sorted(clothes_captions.items())
+    while len(candidates) > 1:
+        next_round: list[tuple[str, str]] = []
+        for i in range(0, len(candidates), 10):
+            batch = candidates[i:i + 10]
+            if len(batch) == 1:
+                next_round.append(batch[0])
+                continue
+            best_name = vlm.choose_best_clothes(background_caption, batch)
+            best_caption = dict(batch).get(best_name, batch[0][1])
+            next_round.append((best_name, best_caption))
+        candidates = next_round
+    return candidates[0][0]
+
+def _baseline_suggested_clothes(vlm, bg_path: Path):
+    descriptions = vlm.generate_clothing_from_image(bg_path)
+    clothes_images = load_str_images_from_folder(CLOTHES_DIR)
+    clothes = [
+        (img_path.stem, Image.open(img_path).convert("RGB"))
+        for img_path in clothes_images
+    ]
+    matcher = ModelRegistry.get("pe_clip_matcher")
+    results = matcher.match_clothes(
+        descriptions=descriptions,
+        clothes=clothes,
+        top_k=1,
+    )
+    return descriptions, (results[0] if results else None)
+
 
 @router.post("/vlm-txt-suggested-clothes")
 def get_suggested_clothes_txt(
     image: UploadFile = File(...),
 ):
-    suffix = Path(image.filename).suffix or ".png"
-    bg_filename = f"{uuid.uuid4().hex}{suffix}"
-    bg_path = BG_DIR / bg_filename
-
-    with open(bg_path, "wb") as f:
-        f.write(image.file.read())
+    bg_path = _save_upload(image)
 
     model = ModelRegistry.get("vlm")
     res = model.generate_clothing_from_image(bg_path)
@@ -48,31 +89,18 @@ def get_suggested_clothes(image: UploadFile = File(...)):
     # -------------------------
     # Save uploaded image
     # -------------------------
-    suffix = Path(image.filename).suffix or ".png"
-    bg_filename = f"{time.time_ns().hex}{suffix}"
-    bg_path = BG_DIR / bg_filename
-
-    with open(bg_path, "wb") as f:
-        f.write(image.file.read())
+    bg_path = _save_upload(image)
 
     # -------------------------
     # Generate clothing text (VLM)
     # -------------------------
     vlm = ModelRegistry.get("vlm")
     descriptions = vlm.generate_clothing_from_image(bg_path)
-
-    # -------------------------
-    # Load clothes images
-    # -------------------------
     clothes_images = load_str_images_from_folder(CLOTHES_DIR)
     clothes = [
         (img_path.stem, Image.open(img_path).convert("RGB"))
         for img_path in clothes_images
     ]
-
-    # -------------------------
-    # CLIP matching
-    # -------------------------
     matcher = ModelRegistry.get("pe_clip_matcher")
     results = matcher.match_clothes(
         descriptions=descriptions,
@@ -98,16 +126,7 @@ def vlm_clothes_captions():
     # -------------------------
     # Load cached JSON if exists
     # -------------------------
-    if CLOTHES_CAPTION.exists():
-        with open(CLOTHES_CAPTION, "r", encoding="utf-8") as f:
-            return json.load(f)
-
-    # -------------------------
-    # Generate + save JSON
-    # -------------------------
-    data = generate_clothes_captions_json()
-
-    return data
+    return _load_clothes_captions()
 
 
 @router.post("/vlm-tournament-selection")
@@ -122,12 +141,7 @@ def vlm_bg_best_clothes(image: UploadFile = File(...)):
     # -------------------------
     # Save uploaded image
     # -------------------------
-    suffix = Path(image.filename).suffix or ".png"
-    bg_filename = f"{time.time_ns().hex}{suffix}"
-    bg_path = BG_DIR / bg_filename
-
-    with open(bg_path, "wb") as f:
-        f.write(image.file.read())
+    bg_path = _save_upload(image)
 
     # -------------------------
     # Background caption
@@ -141,39 +155,55 @@ def vlm_bg_best_clothes(image: UploadFile = File(...)):
     # -------------------------
     # Load clothes captions
     # -------------------------
-    if CLOTHES_CAPTION.exists():
-        with open(CLOTHES_CAPTION, "r", encoding="utf-8") as f:
-            clothes_captions = json.load(f)
-
-    if not clothes_captions:
+    clothes_captions = _load_clothes_captions()
+    best_clothes = _tournament_select(vlm, background_caption, clothes_captions)
+    if best_clothes is None:
         return {
             "background_caption": background_caption,
             "best_clothes": None,
         }
-
-    items = sorted(clothes_captions.items())
-
-    # -------------------------
-    # Tournament selection
-    # -------------------------
-    candidates = items
-    while len(candidates) > 1:
-        next_round: list[tuple[str, str]] = []
-        for i in range(0, len(candidates), 10):
-            batch = candidates[i:i + 10]
-            if len(batch) == 1:
-                next_round.append(batch[0])
-                continue
-            best_name = vlm.choose_best_clothes(background_caption, batch)
-            print(best_name)
-            best_caption = dict(batch).get(best_name, batch[0][1])
-            next_round.append((best_name, best_caption))
-        candidates = next_round
-
-    best_clothes = candidates[0][0]
     print(f"[VLM] Best clothes: {best_clothes}", flush=True)
 
     return {
         "background_caption": background_caption,
         "best_clothes": best_clothes,
+    }
+
+
+@router.post("/vlm-best-clothes-baselines")
+def vlm_best_clothes_baselines(image: UploadFile = File(...)):
+    """
+    Baseline 1: suggested-clothes (VLM descriptions + PE-CLIP top-1)
+    Baseline 2: tournament selection (VLM background caption + captions JSON)
+    """
+
+    bg_path = _save_upload(image)
+
+    vlm = ModelRegistry.get("vlm")
+
+    # -------------------------
+    # Baseline 1: suggested-clothes
+    # -------------------------
+    descriptions, baseline1 = _baseline_suggested_clothes(vlm, bg_path)
+
+    # -------------------------
+    # Baseline 2: tournament selection
+    # -------------------------
+    background_caption = vlm.generate_clothes_caption(
+        str(bg_path),
+        vlm.bg_caption,
+    )
+
+    clothes_captions = _load_clothes_captions()
+    best_clothes = _tournament_select(vlm, background_caption, clothes_captions)
+
+    return {
+        "baseline_1": {
+            "query": descriptions,
+            "result": baseline1,
+        },
+        "baseline_2": {
+            "background_caption": background_caption,
+            "best_clothes": best_clothes,
+        },
     }
