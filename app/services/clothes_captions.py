@@ -35,7 +35,7 @@ def generate_clothes_captions_json(
         unit="image",
     ):
         # generate_clothes_caption returns a single string
-        caption = vlm.generate_clothes_caption(str(img_path))
+        caption = vlm.generate_clothes_caption(str(img_path), vlm.clothes_caption)
         captions[img_path.name] = caption
         print(f"{img_path.name} : {caption}")
 

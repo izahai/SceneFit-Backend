@@ -29,6 +29,8 @@ class VLModel:
         self.system_role = load_prompt_by_key("system_role")
         self.vlm_task = load_prompt_by_key("vlm_task")
         self.clothes_caption = load_prompt_by_key("clothes_caption")
+        self.bg_caption = load_prompt_by_key("bg_caption")
+        self.choose_best_clothes_prompt = load_prompt_by_key("choose_best_clothes")
 
     # -------------------------
     # Core generation helper
@@ -116,7 +118,7 @@ class VLModel:
         paragraphs = [p.strip() for p in output.splitlines() if p.strip()]
         return (paragraphs + ["", "", ""])[:3]
     
-    def generate_clothes_caption(self, image_path: str) -> list[str]:
+    def generate_clothes_caption(self, image_path: str, prompt: str) -> str:
 
         image = Image.open(image_path).convert("RGB")
         image = self.resize_image(image, max_side=1024)
@@ -126,7 +128,7 @@ class VLModel:
                 "role": "user",
                 "content": [
                     {"type": "image", "image": image},
-                    {"type": "text", "text": self.clothes_caption},
+                    {"type": "text", "text": prompt},
                 ],
             },
         ]
@@ -134,3 +136,39 @@ class VLModel:
         output = self._generate(messages)
 
         return " ".join(output.strip().split())
+
+    def choose_best_clothes(
+        self,
+        background_caption: str,
+        candidates: list[tuple[str, str]],
+    ) -> str:
+        """
+        Pick the best-matching clothing item for a background description.
+        Returns the chosen filename from candidates.
+        """
+
+        candidates_text = "\n".join(
+            f"- {name}: {caption}" for name, caption in candidates
+        )
+        prompt = self.choose_best_clothes_prompt.format(
+            background_caption=background_caption,
+            candidates_text=candidates_text,
+        )
+
+        messages = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": prompt}],
+            },
+        ]
+
+        output = self._generate(messages)
+        cleaned = output.strip().strip('"').strip("'")
+
+        for name, _ in candidates:
+            if name in output:
+                return name
+            if cleaned == name:
+                return name
+
+        return candidates[0][0]

@@ -1,4 +1,4 @@
-# app/api/v1/endpoints/pe_clip_ep.py
+# app/api/v1/endpoints/vlm_ep.py
 
 import json
 import uuid
@@ -108,3 +108,68 @@ def vlm_clothes_captions():
     data = generate_clothes_captions_json()
 
     return data
+
+
+@router.post("/vlm-tournament-selection")
+def vlm_bg_best_clothes(image: UploadFile = File(...)):
+    """
+    1. Upload image
+    2. VLM generates background caption
+    3. VLM selects best clothes from captions in batches of 10
+    4. Repeat until a single winner remains
+    """
+
+    # -------------------------
+    # Save uploaded image
+    # -------------------------
+    suffix = Path(image.filename).suffix or ".png"
+    bg_filename = f"{time.time_ns().hex}{suffix}"
+    bg_path = BG_DIR / bg_filename
+
+    with open(bg_path, "wb") as f:
+        f.write(image.file.read())
+
+    # -------------------------
+    # Background caption
+    # -------------------------
+    vlm = ModelRegistry.get("vlm")
+    background_caption = vlm.generate_clothes_caption(
+        str(bg_path),
+        vlm.bg_caption,
+    )
+
+    # -------------------------
+    # Load clothes captions
+    # -------------------------
+    if CLOTHES_CAPTION.exists():
+        with open(CLOTHES_CAPTION, "r", encoding="utf-8") as f:
+            clothes_captions = json.load(f)
+
+    if not clothes_captions:
+        return {
+            "background_caption": background_caption,
+            "best_clothes": None,
+        }
+
+    items = sorted(clothes_captions.items())
+
+    # -------------------------
+    # Tournament selection
+    # -------------------------
+    candidates = items
+    while len(candidates) > 1:
+        next_round: list[tuple[str, str]] = []
+        for i in range(0, len(candidates), 10):
+            batch = candidates[i:i + 10]
+            if len(batch) == 1:
+                next_round.append(batch[0])
+                continue
+            best_name = vlm.choose_best_clothes(background_caption, batch)
+            best_caption = dict(batch).get(best_name, batch[0][1])
+            next_round.append((best_name, best_caption))
+        candidates = next_round
+
+    return {
+        "background_caption": background_caption,
+        "best_clothes": candidates[0][0],
+    }

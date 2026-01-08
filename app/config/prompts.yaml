@@ -57,3 +57,10 @@ bg_caption: |
   - Overall color tone and style of the scene
 
   Write ONE concise sentence and NOT use bullet points or line breaks.
+
+choose_best_clothes: |
+  You are selecting the single best clothing item to match a background.
+  Background: {background_caption}
+  Candidates:
+  {candidates_text}
+  Return exactly one filename from the candidates and nothing else.
