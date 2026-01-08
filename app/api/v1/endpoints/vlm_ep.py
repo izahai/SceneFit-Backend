@@ -165,11 +165,15 @@ def vlm_bg_best_clothes(image: UploadFile = File(...)):
                 next_round.append(batch[0])
                 continue
             best_name = vlm.choose_best_clothes(background_caption, batch)
+            print(best_name)
             best_caption = dict(batch).get(best_name, batch[0][1])
             next_round.append((best_name, best_caption))
         candidates = next_round
 
+    best_clothes = candidates[0][0]
+    print(f"[VLM] Best clothes: {best_clothes}", flush=True)
+
     return {
         "background_caption": background_caption,
-        "best_clothes": candidates[0][0],
+        "best_clothes": best_clothes,
     }
