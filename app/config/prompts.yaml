@@ -19,7 +19,7 @@ system_role: |
 vlm_task: |
   Task:
   Analyze the provided background image.
-  Generate exactly 20 short paragraphs.
+  Generate exactly 10 short paragraphs.
   Each paragraph describes a different outfit with colors that complement the background.
   Each sentence should list clothing items and their colors with detailed descriptions (fabric, fit, layering, accents).
   Include upper-body garments, lower-body garments, and footwear.

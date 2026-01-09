@@ -93,7 +93,7 @@ class VLModel:
     # -------------------------
     def generate_clothing_from_image(self, image_path: str) -> list[str]:
         """
-        Given an image path, generate exactly 3 clothing descriptions.
+        Given an image path, generate exactly 10 clothing descriptions.
         """
 
         image = Image.open(image_path).convert("RGB")
@@ -116,7 +116,7 @@ class VLModel:
         output = self._generate(messages)
 
         paragraphs = [p.strip() for p in output.splitlines() if p.strip()]
-        return (paragraphs + ["", "", ""])[:20]
+        return (paragraphs + [""] * 10)[:10]
     
     def generate_clothes_caption(self, image_path: str, prompt: str) -> str:
 
