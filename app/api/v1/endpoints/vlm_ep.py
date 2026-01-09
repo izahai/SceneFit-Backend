@@ -242,18 +242,22 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
 
     clothes_captions = _get_clothes_captions()
     res3 = _select_clothes_via_tournament(vlm, background_caption, clothes_captions)
+    res3 = {"name_clothes": res3, "similarity": 0, "best_description": "",}
 
     return {
         "approach_1": {
+            "bg_caption": "",
             "query": descriptions,
             "result": res1,
         },
         "approach_2": {
+            "bg_caption": "",
             "query": descriptions,
-            "results": res2,
+            "result": res2,
         },
         "approach_3": {
-            "background_caption": background_caption,
-            "best_clothes": res3,
+            "bg_caption": background_caption,
+            "query": [],
+            "result": res3
         },
     }
