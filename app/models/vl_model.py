@@ -71,7 +71,7 @@ class VLModel:
     def resize_image(
         self,
         image: Image.Image,
-        max_side: int = 1024,
+        max_side: int = 512,
     ) -> Image.Image:
         """
         Resize image so that the longest side == max_side
@@ -97,7 +97,7 @@ class VLModel:
         """
 
         image = Image.open(image_path).convert("RGB")
-        image = self.resize_image(image, max_side=1024)
+        image = self.resize_image(image, max_side=512)
 
         messages = [
             {
@@ -121,7 +121,7 @@ class VLModel:
     def generate_clothes_caption(self, image_path: str, prompt: str) -> str:
 
         image = Image.open(image_path).convert("RGB")
-        image = self.resize_image(image, max_side=1024)
+        image = self.resize_image(image, max_side=512)
 
         messages = [
             {
