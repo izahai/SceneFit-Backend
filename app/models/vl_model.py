@@ -13,7 +13,7 @@ class VLModel:
     def __init__(
         self,
         model_name: str = "Qwen/Qwen3-VL-4B-Instruct",
-        max_new_tokens: int = 384,
+        max_new_tokens: int = 10000,
     ):
         self.model_name = model_name
         self.max_new_tokens = max_new_tokens
