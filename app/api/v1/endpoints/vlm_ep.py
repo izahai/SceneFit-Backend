@@ -49,9 +49,13 @@ def _tournament_select(vlm, background_caption: str, clothes_captions: dict) -> 
         candidates = next_round
     return candidates[0][0]
 
-def _baseline_suggested_clothes(vlm, bg_path: Path):
+def _suggest_clothes_img_matching(vlm, bg_path: Path):
     descriptions = _generate_vlm_descriptions(vlm, bg_path)
     results = _match_clothes_images(descriptions, top_k=1)
+    return descriptions, (results[0] if results else None)
+
+def _suggest_clothes_txt_matching(vlm, descriptions):
+    results = _match_clothes_captions(descriptions, top_k=1)
     return descriptions, (results[0] if results else None)
 
 def _generate_vlm_descriptions(vlm, bg_path: Path) -> list[str]:
@@ -219,12 +223,17 @@ def vlm_best_clothes_baselines(image: UploadFile = File(...)):
     vlm = ModelRegistry.get("vlm")
 
     # -------------------------
-    # Baseline 1: suggested-clothes
+    # Baseline 1: suggest-clothes-img-matching
     # -------------------------
-    descriptions, baseline1 = _baseline_suggested_clothes(vlm, bg_path)
+    descriptions, res1 = _suggest_clothes_img_matching(vlm, bg_path)
+    
+    # -------------------------
+    # Baseline 2: suggest-clothes-img-matching
+    # -------------------------
+    descriptions, res2 = _suggest_clothes_txt_matching(vlm, descriptions)
 
     # -------------------------
-    # Baseline 2: tournament selection
+    # Baseline 3: tournament selection
     # -------------------------
     background_caption = vlm.generate_clothes_caption(
         str(bg_path),
@@ -232,19 +241,19 @@ def vlm_best_clothes_baselines(image: UploadFile = File(...)):
     )
 
     clothes_captions = _load_clothes_captions()
-    best_clothes = _tournament_select(vlm, background_caption, clothes_captions)
+    res3 = _tournament_select(vlm, background_caption, clothes_captions)
 
     return {
-        "baseline_1": {
+        "approach_1": {
             "query": descriptions,
-            "result": baseline1,
+            "result": res1,
         },
-        "baseline_2": {
+        "approach_2": {
+            "query": descriptions,
+            "results": res2,
+        },
+        "approach_3": {
             "background_caption": background_caption,
-            "best_clothes": best_clothes,
-        },
-        "baseline_3": {
-            "query": descriptions,
-            "results": _match_clothes_captions(descriptions, top_k=10),
+            "best_clothes": res3,
         },
     }
