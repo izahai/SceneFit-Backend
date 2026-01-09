@@ -50,20 +50,34 @@ def _tournament_select(vlm, background_caption: str, clothes_captions: dict) -> 
     return candidates[0][0]
 
 def _baseline_suggested_clothes(vlm, bg_path: Path):
-    descriptions = vlm.generate_clothing_from_image(bg_path)
+    descriptions = _generate_vlm_descriptions(vlm, bg_path)
+    results = _match_clothes_images(descriptions, top_k=1)
+    return descriptions, (results[0] if results else None)
+
+def _generate_vlm_descriptions(vlm, bg_path: Path) -> list[str]:
+    return vlm.generate_clothing_from_image(bg_path)
+
+def _match_clothes_images(descriptions: list[str], top_k: int = 10):
     clothes_images = load_str_images_from_folder(CLOTHES_DIR)
     clothes = [
         (img_path.stem, Image.open(img_path).convert("RGB"))
         for img_path in clothes_images
     ]
     matcher = ModelRegistry.get("pe_clip_matcher")
-    results = matcher.match_clothes(
+    return matcher.match_clothes(
         descriptions=descriptions,
         clothes=clothes,
-        top_k=1,
+        top_k=top_k,
     )
-    return descriptions, (results[0] if results else None)
 
+def _match_clothes_captions(descriptions: list[str], top_k: int = 10):
+    clothes_captions = _load_clothes_captions()
+    matcher = ModelRegistry.get("pe_clip_matcher")
+    return matcher.match_clothes_captions(
+        descriptions=descriptions,
+        clothes_captions=clothes_captions,
+        top_k=top_k,
+    )
 
 @router.post("/vlm-txt-suggested-clothes")
 def get_suggested_clothes_txt(
@@ -78,7 +92,7 @@ def get_suggested_clothes_txt(
         "res": res,
     }
     
-@router.post("/vlm-suggested-clothes")
+@router.post("/vlm-suggested-clothes-images")
 def get_suggested_clothes(image: UploadFile = File(...)):
     """
     1. Upload image
@@ -95,18 +109,40 @@ def get_suggested_clothes(image: UploadFile = File(...)):
     # Generate clothing text (VLM)
     # -------------------------
     vlm = ModelRegistry.get("vlm")
-    descriptions = vlm.generate_clothing_from_image(bg_path)
-    clothes_images = load_str_images_from_folder(CLOTHES_DIR)
-    clothes = [
-        (img_path.stem, Image.open(img_path).convert("RGB"))
-        for img_path in clothes_images
-    ]
-    matcher = ModelRegistry.get("pe_clip_matcher")
-    results = matcher.match_clothes(
-        descriptions=descriptions,
-        clothes=clothes,
-        top_k=10,
-    )
+    descriptions = _generate_vlm_descriptions(vlm, bg_path)
+    results = _match_clothes_images(descriptions, top_k=10)
+
+    # -------------------------
+    # Response
+    # -------------------------
+    return {
+        "query": descriptions,
+        "results": results,
+    }
+
+@router.post("/vlm-suggested-clothes-captions")
+def get_suggested_clothes_captions(image: UploadFile = File(...)):
+    """
+    1. Upload image
+    2. VLM generates clothing descriptions
+    3. PE-CLIP ranks clothes by similarity using captions JSON
+    """
+
+    # -------------------------
+    # Save uploaded image
+    # -------------------------
+    bg_path = _save_upload(image)
+
+    # -------------------------
+    # Generate clothing text (VLM)
+    # -------------------------
+    vlm = ModelRegistry.get("vlm")
+    descriptions = _generate_vlm_descriptions(vlm, bg_path)
+
+    # -------------------------
+    # Load clothes captions + match
+    # -------------------------
+    results = _match_clothes_captions(descriptions, top_k=10)
 
     # -------------------------
     # Response
@@ -175,6 +211,7 @@ def vlm_best_clothes_baselines(image: UploadFile = File(...)):
     """
     Baseline 1: suggested-clothes (VLM descriptions + PE-CLIP top-1)
     Baseline 2: tournament selection (VLM background caption + captions JSON)
+    Baseline 3: captions matching (VLM descriptions + captions JSON)
     """
 
     bg_path = _save_upload(image)
@@ -205,5 +242,9 @@ def vlm_best_clothes_baselines(image: UploadFile = File(...)):
         "baseline_2": {
             "background_caption": background_caption,
             "best_clothes": best_clothes,
+        },
+        "baseline_3": {
+            "query": descriptions,
+            "results": _match_clothes_captions(descriptions, top_k=10),
         },
     }

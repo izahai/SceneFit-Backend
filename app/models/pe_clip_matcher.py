@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 from typing import List, Tuple
+from pathlib import Path
 
 import app.services.pe_core.vision_encoder.pe as pe
 import app.services.pe_core.vision_encoder.transforms as transforms
@@ -133,6 +134,61 @@ class PEClipMatcher:
         results = [
             {
                 "name_clothes": names[i],
+                "similarity": float(best_scores[i]),
+                "best_description": descriptions[best_text_idx[i]],
+            }
+            for i in range(len(names))
+        ]
+
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+
+        if top_k is not None:
+            results = results[:top_k]
+
+        return results
+
+    @torch.no_grad()
+    def match_clothes_captions(
+        self,
+        descriptions: list[str],
+        clothes_captions: dict[str, str],
+        top_k: int | None = None,
+    ):
+        """
+        descriptions: list of AI-generated text strings
+        clothes_captions: {image_name: caption}
+        """
+
+        if not clothes_captions:
+            return []
+
+        names = list(clothes_captions.keys())
+        captions = [clothes_captions[name] for name in names]
+
+        # -------------------------
+        # Encode text (per string)
+        # -------------------------
+        query_embs = self.encode_text(descriptions)     # (N_text, D)
+        query_embs = F.normalize(query_embs, dim=-1)
+
+        # -------------------------
+        # Encode clothes captions
+        # -------------------------
+        caption_embs = self.encode_text(captions)       # (N_img, D)
+        caption_embs = F.normalize(caption_embs, dim=-1)
+
+        # -------------------------
+        # Similarity: caption ↔ all descriptions
+        # -------------------------
+        # (N_caption, D) @ (D, N_text) → (N_caption, N_text)
+        sim_matrix = caption_embs @ query_embs.T
+
+        # For each caption, take the best matching description
+        best_scores, best_text_idx = sim_matrix.max(dim=1)
+
+        results = [
+            {
+                "name_clothes": Path(names[i]).stem,
                 "similarity": float(best_scores[i]),
                 "best_description": descriptions[best_text_idx[i]],
             }

@@ -116,7 +116,7 @@ class VLModel:
         output = self._generate(messages)
 
         paragraphs = [p.strip() for p in output.splitlines() if p.strip()]
-        return (paragraphs + ["", "", ""])[:3]
+        return (paragraphs + ["", "", ""])[:5]
     
     def generate_clothes_caption(self, image_path: str, prompt: str) -> str:
 
