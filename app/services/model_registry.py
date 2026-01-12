@@ -31,7 +31,10 @@ class ModelRegistry:
         elif name == "pe_clip_matcher":
             model = PEClipMatcher()
         elif name == "diffusion":
-            model = DiffusionModel()
+            model = DiffusionModel(
+                model_id="stabilityai/stable-diffusion-3.5-medium",
+                pipeline_type="sd3",
+            )
         else:
             raise ValueError(f"Unknown model: {name}")
 

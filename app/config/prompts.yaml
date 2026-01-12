@@ -65,4 +65,4 @@ choose_best_clothes: |
   Return exactly one filename from the candidates and nothing else.
 
 diffusion_prompt:
-  positive: "This is a beautiful image with suitable clothes."
+  positive: "A 3d animated person wearing clothing that matches and complements the 3d surrounding environment."

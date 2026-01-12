@@ -8,7 +8,7 @@ from typing import List, Tuple
 import numpy as np
 from PIL import Image
 import torch
-from diffusers import StableDiffusionPipeline
+from diffusers import StableDiffusionPipeline, StableDiffusion3Pipeline
 
 from app.services.img_processor import compose_2d_on_background
 from app.utils.device import resolve_device, resolve_dtype, resolve_autocast
@@ -23,6 +23,8 @@ def _chunked(items: list, size: int):
         yield items[idx:idx + size]
 
 
+#"stabilityai/stable-diffusion-3.5-medium"
+
 class DiffusionModel:
     """
     Ranks composed background+figure images by how well a pretrained diffusion
@@ -31,9 +33,10 @@ class DiffusionModel:
 
     def __init__(
         self,
-        model_id: str = "stable-diffusion-v1-5/stable-diffusion-v1-5",
+        model_id: str = "stabilityai/stable-diffusion-3.5-medium",
         device: str | None = None,
         dtype: torch.dtype | None = None,
+        pipeline_type: str | None = None,
         image_size: int = 512,
         num_inference_steps: int = 30,
         noise_step_index: int | None = None,
@@ -43,13 +46,17 @@ class DiffusionModel:
         enable_xformers: bool = True,
     ):
         self.model_id = model_id
+        self.pipeline_type = pipeline_type or self._infer_pipeline_type(model_id)
         self.device = resolve_device(device)
         self.device_type = self.device.type
         self.use_autocast = resolve_autocast(self.device)
 
         if dtype is None:
             if self.device_type == "cuda":
-                self.dtype = torch.float16
+                if self.pipeline_type == "sd3" and torch.cuda.is_bf16_supported():
+                    self.dtype = torch.bfloat16
+                else:
+                    self.dtype = torch.float16
             else:
                 self.dtype = resolve_dtype(self.device)
         else:
@@ -70,20 +77,29 @@ class DiffusionModel:
         self.prompt = self._load_prompt_text()
 
         self._pipe = None
-        self._unet = None
+        self._denoiser = None
         self._vae = None
         self._text_encoder = None
         self._tokenizer = None
         self._scheduler = None
 
         self._prompt_embeds = None
+        self._pooled_prompt_embeds = None
         self._uncond_embeds = None
+        self._neg_pooled_prompt_embeds = None
         self._noise_timestep = None
 
         self._load_pipeline()
 
     def load(self):
         return None
+
+    @staticmethod
+    def _infer_pipeline_type(model_id: str) -> str:
+        lowered = model_id.lower()
+        if "stable-diffusion-3" in lowered or "sd3" in lowered:
+            return "sd3"
+        return "sd15"
 
     def _load_pipeline(self):
         kwargs = {"torch_dtype": self.dtype}
@@ -92,6 +108,11 @@ class DiffusionModel:
 
         def _load_pipe(load_kwargs):
             try:
+                if self.pipeline_type == "sd3":
+                    return StableDiffusion3Pipeline.from_pretrained(
+                        self.model_id,
+                        **load_kwargs,
+                    )
                 return StableDiffusionPipeline.from_pretrained(
                     self.model_id,
                     safety_checker=None,
@@ -99,6 +120,11 @@ class DiffusionModel:
                     **load_kwargs,
                 )
             except TypeError:
+                if self.pipeline_type == "sd3":
+                    return StableDiffusion3Pipeline.from_pretrained(
+                        self.model_id,
+                        **load_kwargs,
+                    )
                 return StableDiffusionPipeline.from_pretrained(
                     self.model_id,
                     safety_checker=None,
@@ -121,16 +147,28 @@ class DiffusionModel:
             except Exception:
                 pass
 
-        self._unet = self._pipe.unet.eval()
+        if self.pipeline_type == "sd3":
+            self._denoiser = self._pipe.transformer.eval()
+        else:
+            self._denoiser = self._pipe.unet.eval()
         self._vae = self._pipe.vae.eval()
-        self._text_encoder = self._pipe.text_encoder.eval()
-        self._tokenizer = self._pipe.tokenizer
+        if self.pipeline_type != "sd3":
+            self._text_encoder = self._pipe.text_encoder.eval()
+            self._tokenizer = self._pipe.tokenizer
         self._scheduler = self._pipe.scheduler
         self._scheduler.set_timesteps(self.num_inference_steps, device=self.device)
 
-        self._prompt_embeds = self._encode_prompt(self.prompt)
-        if self.guidance_scale > 1.0:
-            self._uncond_embeds = self._encode_prompt("")
+        if self.pipeline_type == "sd3":
+            (
+                self._prompt_embeds,
+                self._pooled_prompt_embeds,
+                self._uncond_embeds,
+                self._neg_pooled_prompt_embeds,
+            ) = self._encode_prompt_sd3(self.prompt)
+        else:
+            self._prompt_embeds = self._encode_prompt(self.prompt)
+            if self.guidance_scale > 1.0:
+                self._uncond_embeds = self._encode_prompt("")
 
         step_index = min(
             max(0, self.noise_step_index),
@@ -176,6 +214,53 @@ class DiffusionModel:
 
         return prompt_embeds
 
+    def _encode_prompt_sd3(
+        self,
+        prompt: str,
+        negative_prompt: str | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+        encode_fn = getattr(self._pipe, "encode_prompt", None)
+        if encode_fn is None:
+            encode_fn = getattr(self._pipe, "_encode_prompt", None)
+        if encode_fn is None:
+            raise RuntimeError("SD3 pipeline missing encode_prompt")
+
+        do_cfg = self.guidance_scale > 1.0
+        kwargs = {
+            "prompt": prompt,
+            "prompt_2": None,
+            "prompt_3": None,
+            "device": self.device,
+            "num_images_per_prompt": 1,
+            "do_classifier_free_guidance": do_cfg,
+            "negative_prompt": negative_prompt or "",
+            "negative_prompt_2": None,
+            "negative_prompt_3": None,
+        }
+
+        try:
+            encoded = encode_fn(**kwargs)
+        except TypeError:
+            kwargs.pop("prompt_2", None)
+            kwargs.pop("prompt_3", None)
+            kwargs.pop("negative_prompt_2", None)
+            kwargs.pop("negative_prompt_3", None)
+            encoded = encode_fn(**kwargs)
+
+        if not isinstance(encoded, tuple):
+            raise RuntimeError("SD3 encode_prompt returned unexpected output")
+
+        if len(encoded) == 4:
+            prompt_embeds, neg_prompt_embeds, pooled, neg_pooled = encoded
+        elif len(encoded) == 2:
+            prompt_embeds, pooled = encoded
+            neg_prompt_embeds = None
+            neg_pooled = None
+        else:
+            raise RuntimeError("SD3 encode_prompt returned unexpected tuple size")
+
+        return prompt_embeds, pooled, neg_prompt_embeds, neg_pooled
+
     def _prepare_image_tensor(self, image: Image.Image) -> torch.Tensor:
         image = image.convert("RGB")
 
@@ -210,6 +295,18 @@ class DiffusionModel:
         return latents
 
     def _get_prompt_embeds(self, batch_size: int) -> torch.Tensor:
+        if self.pipeline_type == "sd3":
+            prompt_embeds = self._prompt_embeds.repeat(batch_size, 1, 1)
+            pooled = self._pooled_prompt_embeds.repeat(batch_size, 1)
+
+            if self.guidance_scale > 1.0 and self._uncond_embeds is not None:
+                uncond_embeds = self._uncond_embeds.repeat(batch_size, 1, 1)
+                uncond_pooled = self._neg_pooled_prompt_embeds.repeat(batch_size, 1)
+                prompt_embeds = torch.cat([uncond_embeds, prompt_embeds], dim=0)
+                pooled = torch.cat([uncond_pooled, pooled], dim=0)
+
+            return prompt_embeds, pooled
+
         prompt_embeds = self._prompt_embeds.repeat(batch_size, 1, 1)
 
         if self.guidance_scale > 1.0:
@@ -238,11 +335,27 @@ class DiffusionModel:
             dtype=self.dtype,
             enabled=self.use_autocast,
         ):
-            noise_pred = self._unet(
-                latent_model_input,
-                timesteps_input,
-                encoder_hidden_states=prompt_embeds,
-            ).sample
+            if self.pipeline_type == "sd3":
+                text_embeds, pooled = prompt_embeds
+                output = self._denoiser(
+                    latent_model_input,
+                    timesteps_input,
+                    encoder_hidden_states=text_embeds,
+                    pooled_projections=pooled,
+                )
+            else:
+                output = self._denoiser(
+                    latent_model_input,
+                    timesteps_input,
+                    encoder_hidden_states=prompt_embeds,
+                )
+
+            if hasattr(output, "sample"):
+                noise_pred = output.sample
+            elif isinstance(output, tuple):
+                noise_pred = output[0]
+            else:
+                noise_pred = output
 
         if self.guidance_scale > 1.0:
             noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
