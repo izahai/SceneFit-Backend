@@ -5,6 +5,7 @@ from app.models.mmemb_model import MmEmbModel
 from app.models.pe_clip_model import PEClipModel 
 from app.models.vl_model import VLModel
 from app.models.pe_clip_matcher import PEClipMatcher
+from app.models.diffusion_model import DiffusionModel
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
@@ -29,6 +30,8 @@ class ModelRegistry:
             model = VLModel()
         elif name == "pe_clip_matcher":
             model = PEClipMatcher()
+        elif name == "diffusion":
+            model = DiffusionModel()
         else:
             raise ValueError(f"Unknown model: {name}")
 

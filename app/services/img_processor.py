@@ -1,34 +1,20 @@
 # app/services/img_processor.py
 
-# from rembg import remove
+from rembg import remove
 from PIL import Image
 import numpy as np
 import json
 from typing import Tuple, List
 import os
 
-# def remove_background(input_path, output_path):
-#     with open(input_path, "rb") as f:
-#         input_image = f.read()
+def remove_background(input_path, output_path):
+    with open(input_path, "rb") as f:
+        input_image = f.read()
 
-#     output_image = remove(input_image)
+    output_image = remove(input_image)
 
-#     with open(output_path, "wb") as f:
-#         f.write(output_image)
-
-# --- CLI Test ---
-# python - << 'EOF'
-# from app.services.img_processor import remove_background
-# import os
-
-# input_path = "app/clothes/1.png"
-# output_path = "test.png"
-
-# remove_background(input_path, output_path)
-
-# assert os.path.exists(output_path), "[Error] Output file was not created"
-# print("[Complete] Background removal test passed")
-# EOF
+    with open(output_path, "wb") as f:
+        f.write(output_image)
 
 def paste_centered(
     fg_path: str,
@@ -68,30 +54,18 @@ def paste_centered(
 
     bg.save(output_path)
 
-# --- CLI Test ---
-# python - << 'EOF'
-# from app.services.img_processor import paste_centered
-
-# paste_centered(
-#     fg_path="test.png",          # output from rembg
-#     bg_path="bg_test.png",
-#     output_path="final.png",
-#     scale=0.8
-# )
-
-# print("[Complete] Image compositing passed")
-# EOF
-
 def compose_2d_on_background(
     bg_path: str,
     fg_dir: str = "app/data/2d",
+    fg_files: List[str] | None = None,
     clothes_json: str = "app/data/clothes.json",
     scale: float = 1.0,
     return_format: str = "pil",  # "pil" | "numpy"
     output_dir: str = "app/outputs/composed",
 ) -> List[Tuple[str, Image.Image]]:
     """
-    Paste foreground images listed in clothes.json centered on the background image.
+    Paste foreground images centered on the background image.
+    Uses fg_files when provided, otherwise loads from clothes_json.
     Saves all composed images into outputs/composed using the figure name.
     Returns (filename, image).
     """
@@ -103,13 +77,18 @@ def compose_2d_on_background(
     os.makedirs(output_dir, exist_ok=True)
 
     # -------------------------------------------------
-    # Load clothes.json (list[str])
+    # Load fg list
     # -------------------------------------------------
-    with open(clothes_json, "r") as f:
-        fg_files: List[str] = json.load(f)
+    if fg_files is None:
+        with open(clothes_json, "r") as f:
+            fg_files = json.load(f)
 
-    if not fg_files:
-        raise RuntimeError("clothes.json is empty")
+        if not fg_files:
+            raise RuntimeError("clothes.json is empty")
+    else:
+        fg_files = [str(p) for p in fg_files]
+        if not fg_files:
+            raise RuntimeError("fg_files is empty")
 
     # -------------------------------------------------
     # Process each foreground image

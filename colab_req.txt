@@ -13,6 +13,7 @@ onnxruntime
 # Transformers / finetuning
 transformers
 peft
+diffusers
 
 # 3D / rendering (only if actually used)
 trimesh
