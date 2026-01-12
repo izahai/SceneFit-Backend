@@ -37,18 +37,18 @@ async def lifespan(app: FastAPI):
     # )
     
     #  ---------- Qwen3 ----------
-    print("[START] Loading Qwen3 ...")
-    ModelRegistry.register(
-        name="vlm",
-        model=VLModel(),
-    )
+    # print("[START] Loading Qwen3 ...")
+    # ModelRegistry.register(
+    #     name="vlm",
+    #     model=VLModel(),
+    # )
     
     #  ---------- PE Matcher ----------
-    print("[START] Loading PE Matcher ...")
-    ModelRegistry.register(
-        name="pe_clip_matcher",
-        model=PEClipMatcher(),
-    )
+    # print("[START] Loading PE Matcher ...")
+    # ModelRegistry.register(
+    #     name="pe_clip_matcher",
+    #     model=PEClipMatcher(),
+    # )
     
     # ---------- Diffusion ----------
     print("[START] Loading Diffusion ...")
