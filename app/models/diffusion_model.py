@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 from typing import List, Tuple
 
 import numpy as np
@@ -37,6 +38,7 @@ class DiffusionModel:
         device: str | None = None,
         dtype: torch.dtype | None = None,
         pipeline_type: str | None = None,
+        hf_token: str | None = None,
         image_size: int = 512,
         num_inference_steps: int = 30,
         noise_step_index: int | None = None,
@@ -50,6 +52,7 @@ class DiffusionModel:
         self.device = resolve_device(device)
         self.device_type = self.device.type
         self.use_autocast = resolve_autocast(self.device)
+        self.hf_token = hf_token or os.getenv("HF_TOKEN")
 
         if dtype is None:
             if self.device_type == "cuda":
@@ -105,6 +108,8 @@ class DiffusionModel:
         kwargs = {"torch_dtype": self.dtype}
         if self.dtype == torch.float16:
             kwargs["variant"] = "fp16"
+        if self.hf_token:
+            kwargs["token"] = self.hf_token
 
         def _load_pipe(load_kwargs):
             try:
