@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     
     # ---------- SD1.5 ----------
     print("[START] Loading SD1.5 ...")
-    ModelRegistry.get()
+    ModelRegistry.get("sd15")
     
     print("[START] Models loaded")
     print("[START] Backend started")
