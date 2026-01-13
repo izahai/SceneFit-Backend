@@ -41,7 +41,7 @@ class DiffusionModel:
         dtype: torch.dtype | None = None,
         pipeline_type: str | None = None,
         hf_token: str | None = None,
-        text_encoder_only: bool = False,
+        text_encoder_only: bool = True,
         image_size: int = 512,
         num_inference_steps: int = 10,
         noise_step_index: int | None = None,

@@ -9,7 +9,6 @@ from app.models.mmemb_model import MmEmbModel
 from app.models.pe_clip_model import PEClipModel
 from app.models.vl_model import VLModel
 from app.models.pe_clip_matcher import PEClipMatcher
-from app.models.diffusion_model import DiffusionModel
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,39 +23,23 @@ async def lifespan(app: FastAPI):
 
     #  ---------- Jina ----------
     # print("[START] Loading Jina Model ...")
-    # ModelRegistry.register(
-    #     name="mmEmb",
-    #     model=MmEmbModel(),
-    # )
+    ModelRegistry.get("jina-v4")
 
     #  ---------- PE ----------
     # print("[START] Loading Perception Model ...")
-    # ModelRegistry.register(
-    #     name="pe",
-    #     model=PEClipModel(),
-    # )
+    ModelRegistry.get("pe")
     
     # ---------- Qwen3 ----------
     # print("[START] Loading Qwen3 ...")
-    # ModelRegistry.register(
-    #     name="vlm",
-    #     model=VLModel(),
-    # )
+    ModelRegistry.get("vlm")
     
     #  ---------- PE Matcher ----------
     # print("[START] Loading PE Matcher ...")
-    # ModelRegistry.register(
-    #     name="pe_clip_matcher",
-    #     model=PEClipMatcher(),
-    # )
-    
+    ModelRegistry.get("pe_clip_matcher")
+
     # ---------- Diffusion ----------
     print("[START] Loading Diffusion ...")
-    ModelRegistry.register(
-        name="diffusion",
-        model=DiffusionModel(),
-    )
-    
+    ModelRegistry.get("diffusion")
     
     print("[START] Models loaded")
     print("[START] Backend started")

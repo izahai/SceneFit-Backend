@@ -1,6 +1,7 @@
 # app/services/model_registry.py
 
 from typing import Dict, Any
+import os
 from app.models.mmemb_model import MmEmbModel
 from app.models.pe_clip_model import PEClipModel 
 from app.models.vl_model import VLModel
@@ -22,6 +23,7 @@ class ModelRegistry:
 
     @staticmethod
     def _load(name: str):
+
         if name == "jina-v4":
             model = MmEmbModel()
         elif name == "pe":
