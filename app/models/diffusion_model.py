@@ -10,7 +10,12 @@ from typing import List, Tuple
 import numpy as np
 from PIL import Image
 import torch
-from diffusers import StableDiffusionPipeline, StableDiffusion3Pipeline
+from diffusers import (
+    BitsAndBytesConfig,
+    SD3Transformer2DModel,
+    StableDiffusion3Pipeline,
+    StableDiffusionPipeline,
+)
 
 from app.services.img_processor import compose_2d_on_background
 from app.utils.device import resolve_device, resolve_dtype, resolve_autocast
@@ -49,6 +54,7 @@ class DiffusionModel:
         batch_size: int = 1,
         noise_seed: int = 1234,
         enable_xformers: bool = True,
+        enable_4bit: bool = True,
     ):
         self.model_id = model_id
         self.pipeline_type = pipeline_type or self._infer_pipeline_type(model_id)
@@ -80,6 +86,7 @@ class DiffusionModel:
         self.batch_size = max(1, batch_size)
         self.noise_seed = noise_seed
         self.enable_xformers = enable_xformers
+        self.enable_4bit = enable_4bit
 
         self.prompt = self._load_prompt_text()
 
@@ -116,6 +123,21 @@ class DiffusionModel:
             kwargs["variant"] = "fp16"
         if self.hf_token:
             kwargs["token"] = self.hf_token
+        if self.enable_4bit and self.pipeline_type == "sd3":
+            if self.dtype != torch.bfloat16:
+                self.dtype = torch.bfloat16
+                kwargs["torch_dtype"] = self.dtype
+            nf4_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=self.dtype,
+            )
+            kwargs["transformer"] = SD3Transformer2DModel.from_pretrained(
+                self.model_id,
+                subfolder="transformer",
+                quantization_config=nf4_config,
+                torch_dtype=self.dtype,
+            )
 
         def _load_pipe(load_kwargs):
             try:
