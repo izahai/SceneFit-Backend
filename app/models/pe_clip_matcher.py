@@ -201,3 +201,6 @@ class PEClipMatcher:
             results = results[:top_k]
 
         return results
+    
+    def load(self):
+        return None

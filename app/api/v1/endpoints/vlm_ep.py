@@ -10,7 +10,7 @@ import time
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
 from app.services.clothes_captions import generate_clothes_captions_json
-from app.api.v1.endpoints.aesthetic_ep import retrieve_best_fit_aesthetic
+from app.api.v1.endpoints.aesthetic_ep import score_outfits
 router = APIRouter()
 
 BG_DIR = Path("app/uploads/bg")
@@ -256,7 +256,8 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
     # -------------------------
     # Baseline 4: Aesthetic Predictor
     # -------------------------
-    aes_pred = retrieve_best_fit_aesthetic(image)
+    aes_model = ModelRegistry.get("aesthetic")
+    aes_pred = score_outfits(aes_model, bg_path)
     res4 = aes_pred["results"]
 
     response_payload = {
