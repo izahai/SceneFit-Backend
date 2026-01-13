@@ -30,16 +30,20 @@ async def lifespan(app: FastAPI):
     # ModelRegistry.get("pe")
     
     # ---------- Qwen3 ----------
-    print("[START] Loading Qwen3 ...")
-    ModelRegistry.get("vlm")
+    # print("[START] Loading Qwen3 ...")
+    # ModelRegistry.get("vlm")
     
     #  ---------- PE Matcher ----------
-    print("[START] Loading PE Matcher ...")
-    ModelRegistry.get("pe_clip_matcher")
+    # print("[START] Loading PE Matcher ...")
+    # ModelRegistry.get("pe_clip_matcher")
 
     # ---------- Diffusion ----------
     # print("[START] Loading Diffusion ...")
     # ModelRegistry.get("diffusion")
+    
+    # ---------- SD1.5 ----------
+    print("[START] Loading SD1.5 ...")
+    ModelRegistry.get()
     
     print("[START] Models loaded")
     print("[START] Backend started")

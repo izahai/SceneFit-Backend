@@ -7,6 +7,7 @@ from app.models.pe_clip_model import PEClipModel
 from app.models.vl_model import VLModel
 from app.models.pe_clip_matcher import PEClipMatcher
 from app.models.diffusion_model import DiffusionModel
+from app.models.sd15_model import SD15Model
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
@@ -38,6 +39,8 @@ class ModelRegistry:
                 pipeline_type="sd3",
                 text_encoder_only=True,
             )
+        elif name == "sd15":
+            model = SD15Model()
         else:
             raise ValueError(f"Unknown model: {name}")
 
