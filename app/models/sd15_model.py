@@ -113,29 +113,41 @@ class SD15Model:
 
         neg_prompt = negative_prompt or ""
 
-        with torch.inference_mode():
-            with self._precision_context():
-                with self._ema_scope():
-                    conditioning = self._model.get_learned_conditioning([prompt])
-                    uncond = None
-                    if guidance_scale != 1.0:
-                        uncond = self._model.get_learned_conditioning([neg_prompt])
+        try:
+            with torch.inference_mode():
+                with self._precision_context():
+                    with self._ema_scope():
+                        conditioning = self._model.get_learned_conditioning([prompt])
+                        uncond = None
+                        if guidance_scale != 1.0:
+                            uncond = self._model.get_learned_conditioning([neg_prompt])
 
-                    samples, _ = self._sampler.sample(
-                        S=steps,
-                        conditioning=conditioning,
-                        batch_size=1,
-                        shape=shape,
-                        verbose=False,
-                        unconditional_guidance_scale=guidance_scale,
-                        unconditional_conditioning=uncond,
-                        eta=eta,
-                    )
+                        samples, _ = self._sampler.sample(
+                            S=steps,
+                            conditioning=conditioning,
+                            batch_size=1,
+                            shape=shape,
+                            verbose=False,
+                            unconditional_guidance_scale=guidance_scale,
+                            unconditional_conditioning=uncond,
+                            eta=eta,
+                        )
 
-                    decoded = self._model.decode_first_stage(samples)
-                    decoded = torch.clamp((decoded + 1.0) / 2.0, 0.0, 1.0)
+                        decoded = self._model.decode_first_stage(samples)
+                        decoded = torch.clamp((decoded + 1.0) / 2.0, 0.0, 1.0)
 
-        return self._tensor_to_pil(decoded[0])
+            return self._tensor_to_pil(decoded[0])
+        finally:
+            try:
+                del conditioning
+                del uncond
+                del samples
+                del decoded
+            except Exception:
+                pass
+            gc.collect()
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
 
     def _precision_context(self):
         if self.precision == "autocast" and self.device.type == "cuda":
