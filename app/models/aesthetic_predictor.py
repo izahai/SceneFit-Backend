@@ -4,12 +4,27 @@ from urllib.request import urlretrieve
 import os
 from os.path import expanduser
 from app.utils.device import resolve_device
-from app.models.pe_clip_model import PEClipModel
+import open_clip
 
+class CLIPModel:
+    def __init__(self, model_name="ViT-L-14", pretrained="openai", device=None):
+        self.device = resolve_device(device)
+        
+        self.model, _, self.preprocess = open_clip.create_model_and_transforms(model_name, pretrained=pretrained)
+        self.model.to(self.device)
+        self.model.eval()
+    
+    @torch.no_grad()
+    def embed_images(self, images) -> torch.Tensor:
+        batch = torch.stack([self.preprocess(img) for img in images]).to(self.device)
+        embeddings = self.model.encode_image(batch)
+        embeddings /= embeddings.norm(dim=-1, keepdim=True)
+        return embeddings
+    
 class AestheticPredictor:
     def __init__(self, device=None):
         self.device = resolve_device(device)
-        self.pe = PEClipModel(device=self.device, autocast=False)
+        self.clip_model = CLIPModel()
         self.head = self.get_aesthetic_model().to(self.device)
         self.head.eval()
         
@@ -40,7 +55,7 @@ class AestheticPredictor:
     @torch.no_grad()
     def score_images(self, items):
         names, images = zip(*items)
-        embeddings = self.pe.encode_image(list(images))
+        embeddings = self.clip_model.embed_images(list(images))
         preds = self.head(embeddings).squeeze(-1).tolist()
         results = [{"name_clothes": n, "aesthetic_score": p} for n, p in zip(names, preds)]
         results.sort(key=lambda x: x["aesthetic_score"], reverse=True)
