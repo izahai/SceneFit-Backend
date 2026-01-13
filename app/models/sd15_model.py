@@ -353,7 +353,7 @@ class SD15Model:
                     "Missing dependency safetensors for .safetensors checkpoint."
                 ) from exc
             return load_file(str(ckpt_path))
-        return torch.load(ckpt_path, map_location="cpu")
+        return torch.load(ckpt_path, map_location="cpu", weights_only=False)
 
     @staticmethod
     def _normalize_size(width: int, height: int) -> tuple[int, int]:
