@@ -38,8 +38,8 @@ async def lifespan(app: FastAPI):
     # ModelRegistry.get("pe_clip_matcher")
 
     # ---------- Diffusion ----------
-    print("[START] Loading Diffusion ...")
-    ModelRegistry.get("diffusion")
+    # print("[START] Loading Diffusion ...")
+    # ModelRegistry.get("diffusion")
 
     # ---------- Z-Image ----------
     print("[START] Loading Z-Image ...")
