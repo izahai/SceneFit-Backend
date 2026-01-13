@@ -10,6 +10,7 @@ from app.models.pe_clip_model import PEClipModel
 from app.models.vl_model import VLModel
 from app.models.pe_clip_matcher import PEClipMatcher
 from app.models.diffusion_model import DiffusionModel
+from app.models.vqvae_model import VQVAEModel
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -51,12 +52,18 @@ async def lifespan(app: FastAPI):
     # )
     
     # ---------- Diffusion ----------
-    print("[START] Loading Diffusion ...")
+    # print("[START] Loading Diffusion ...")
+    # ModelRegistry.register(
+    #     name="diffusion",
+    #     model=DiffusionModel(),
+    # )
+
+    # ---------- VQVAE ----------
+    print("[START] Loading VQVAE Model ...")
     ModelRegistry.register(
-        name="diffusion",
-        model=DiffusionModel(),
+        name="vqvae",
+        model=VQVAEModel(),
     )
-    
     
     print("[START] Models loaded")
     print("[START] Backend started")
