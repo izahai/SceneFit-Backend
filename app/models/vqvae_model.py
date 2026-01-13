@@ -1,8 +1,14 @@
 from git import List, Optional, Sequence, Tuple, Union
 import torch
-from VAR.models.vqvae import VQVAE
 import urllib.request
 from pathlib import Path
+import sys
+
+VAR_ROOT = Path(__file__).resolve().parent / "VAR"
+if str(VAR_ROOT) not in sys.path:
+    sys.path.insert(0, str(VAR_ROOT))
+
+from models.vqvae import VQVAE
 
 HF_HOME = "https://huggingface.co/FoundationVision/var/resolve/main"
 VAE_CKPT_NAME = "vae_ch160v4096z32.pth"
