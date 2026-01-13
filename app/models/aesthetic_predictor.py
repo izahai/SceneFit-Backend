@@ -13,7 +13,7 @@ class AestheticPredictor:
         self.head = self.get_aesthetic_model().to(self.device)
         self.head.eval()
         
-    def get_aesthetic_model(self, clip_model="PE-Core-L14-336"):
+    def get_aesthetic_model(self, clip_model="vit_l_14"):
         home = expanduser("~")
         cache_folder = home + "/.cache/emb_reader"
         path_to_model = cache_folder + "/sa_0_4_"+clip_model+"_linear.pth"
@@ -23,7 +23,7 @@ class AestheticPredictor:
                 "https://github.com/LAION-AI/aesthetic-predictor/blob/main/sa_0_4_"+clip_model+"_linear.pth?raw=true"
             )
             urlretrieve(url_model, path_to_model)
-        if clip_model == "PE-Core-L14-336":
+        if clip_model == "vit_l_14":
             m = nn.Linear(768, 1)
         # elif clip_model == "vit_b_32":
             # m = nn.Linear(512, 1)
