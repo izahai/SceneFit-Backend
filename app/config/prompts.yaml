@@ -63,3 +63,6 @@ choose_best_clothes: |
   Candidates:
   {candidates_text}
   Return exactly one filename from the candidates and nothing else.
+
+diffusion_prompt:
+  positive: "A 3d animated person wearing clothing that matches and complements the 3d surrounding environment."
