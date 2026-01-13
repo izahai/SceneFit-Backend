@@ -8,6 +8,7 @@ import logging
 import os
 import random
 import sys
+import gc
 from pathlib import Path
 
 import numpy as np
@@ -158,7 +159,10 @@ class SD15Model:
         try:
             config = OmegaConf.load(config_path)
             model = self._instantiate_from_config(config.model)
-            checkpoint = self._load_checkpoint(ckpt_path)
+            load_device = self.device if self.device.type == "cuda" else torch.device("cpu")
+            if load_device.type == "cuda":
+                model.to(load_device)
+            checkpoint = self._load_checkpoint(ckpt_path, load_device)
             state_dict = checkpoint.get("state_dict", checkpoint)
             missing, unexpected = model.load_state_dict(state_dict, strict=False)
             if missing:
@@ -169,6 +173,13 @@ class SD15Model:
             raise RuntimeError(
                 f"Missing dependency {exc.name}. Install stable-diffusion requirements."
             ) from exc
+        finally:
+            try:
+                del checkpoint
+                del state_dict
+            except Exception:
+                pass
+            gc.collect()
 
         if self.precision == "fp16" and self.device.type == "cuda":
             model = model.half()
@@ -344,7 +355,7 @@ class SD15Model:
         return Path(downloaded)
 
     @staticmethod
-    def _load_checkpoint(ckpt_path: Path) -> dict:
+    def _load_checkpoint(ckpt_path: Path, device: torch.device) -> dict:
         if ckpt_path.suffix == ".safetensors":
             try:
                 from safetensors.torch import load_file
@@ -352,8 +363,8 @@ class SD15Model:
                 raise RuntimeError(
                     "Missing dependency safetensors for .safetensors checkpoint."
                 ) from exc
-            return load_file(str(ckpt_path))
-        return torch.load(ckpt_path, map_location="cpu", weights_only=False)
+            return load_file(str(ckpt_path), device=str(device))
+        return torch.load(ckpt_path, map_location=device, weights_only=False)
 
     @staticmethod
     def _normalize_size(width: int, height: int) -> tuple[int, int]:
