@@ -40,6 +40,10 @@ async def lifespan(app: FastAPI):
     # ---------- Diffusion ----------
     print("[START] Loading Diffusion ...")
     ModelRegistry.get("diffusion")
+
+    # ---------- Z-Image ----------
+    print("[START] Loading Z-Image ...")
+    ModelRegistry.get("zimage")
     
     print("[START] Models loaded")
     print("[START] Backend started")

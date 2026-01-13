@@ -10,12 +10,8 @@ from typing import List, Tuple
 import numpy as np
 from PIL import Image
 import torch
-from diffusers import (
-    BitsAndBytesConfig,
-    SD3Transformer2DModel,
-    StableDiffusion3Pipeline,
-    StableDiffusionPipeline,
-)
+from diffusers import StableDiffusion3Pipeline, StableDiffusionPipeline
+from importlib import metadata as importlib_metadata
 
 from app.services.img_processor import compose_2d_on_background
 from app.utils.device import resolve_device, resolve_dtype, resolve_autocast
@@ -124,9 +120,20 @@ class DiffusionModel:
         if self.hf_token:
             kwargs["token"] = self.hf_token
         if self.enable_4bit and self.pipeline_type == "sd3":
+            try:
+                importlib_metadata.version("bitsandbytes")
+            except importlib_metadata.PackageNotFoundError:
+                logger.warning(
+                    "bitsandbytes not installed; disabling SD3 4-bit loading."
+                )
+                self.enable_4bit = False
+
+        if self.enable_4bit and self.pipeline_type == "sd3":
             if self.dtype != torch.bfloat16:
                 self.dtype = torch.bfloat16
                 kwargs["torch_dtype"] = self.dtype
+            from diffusers import BitsAndBytesConfig, SD3Transformer2DModel
+
             nf4_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type="nf4",
