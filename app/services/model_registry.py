@@ -34,6 +34,7 @@ class ModelRegistry:
             model = DiffusionModel(
                 model_id="stabilityai/stable-diffusion-3.5-medium",
                 pipeline_type="sd3",
+                text_encoder_only=True,
             )
         else:
             raise ValueError(f"Unknown model: {name}")
