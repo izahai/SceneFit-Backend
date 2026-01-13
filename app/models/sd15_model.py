@@ -162,7 +162,8 @@ class SD15Model:
         seed: int | None = None,
         noise_seed: int | None = None,
         eta: float | None = None,
-    ) -> Image.Image:
+        return_intermediates: bool = False,
+    ) -> Image.Image | tuple[Image.Image, list[Image.Image]]:
         if image is None:
             raise ValueError("Image is required for img2img denoising.")
         if not prompt or not prompt.strip():
@@ -225,18 +226,31 @@ class SD15Model:
                             uc = self._model.get_learned_conditioning([negative_prompt or ""])
                         c = self._model.get_learned_conditioning([prompt])
 
-                        samples = self._sampler.decode(
-                            z_enc,
-                            c,
-                            t_enc,
-                            unconditional_guidance_scale=guidance_scale,
-                            unconditional_conditioning=uc,
-                        )
+                        if return_intermediates:
+                            samples, step_images = self._decode_with_intermediates(
+                                z_enc,
+                                c,
+                                t_enc,
+                                unconditional_guidance_scale=guidance_scale,
+                                unconditional_conditioning=uc,
+                            )
+                        else:
+                            samples = self._sampler.decode(
+                                z_enc,
+                                c,
+                                t_enc,
+                                unconditional_guidance_scale=guidance_scale,
+                                unconditional_conditioning=uc,
+                            )
+                            step_images = None
 
                         decoded = self._model.decode_first_stage(samples)
                         decoded = torch.clamp((decoded + 1.0) / 2.0, 0.0, 1.0)
 
-            return self._tensor_to_pil(decoded[0])
+            result_image = self._tensor_to_pil(decoded[0])
+            if return_intermediates:
+                return result_image, step_images or []
+            return result_image
         finally:
             try:
                 del init_tensor
@@ -250,6 +264,55 @@ class SD15Model:
             gc.collect()
             if self.device.type == "cuda":
                 torch.cuda.empty_cache()
+
+    def _decode_with_intermediates(
+        self,
+        x_latent: torch.Tensor,
+        cond,
+        t_start: int,
+        unconditional_guidance_scale: float = 1.0,
+        unconditional_conditioning=None,
+        use_original_steps: bool = False,
+    ) -> tuple[torch.Tensor, list[Image.Image]]:
+        timesteps = (
+            np.arange(self._sampler.ddpm_num_timesteps)
+            if use_original_steps
+            else self._sampler.ddim_timesteps
+        )
+        t_start = max(0, min(int(t_start), timesteps.shape[0]))
+        if t_start == 0:
+            return x_latent, []
+
+        timesteps = timesteps[:t_start]
+        time_range = np.flip(timesteps)
+        total_steps = timesteps.shape[0]
+        x_dec = x_latent
+        step_images: list[Image.Image] = []
+
+        for i, step in enumerate(time_range):
+            index = total_steps - i - 1
+            ts = torch.full(
+                (x_latent.shape[0],),
+                step,
+                device=x_latent.device,
+                dtype=torch.long,
+            )
+            x_dec, pred_x0 = self._sampler.p_sample_ddim(
+                x_dec,
+                cond,
+                ts,
+                index=index,
+                use_original_steps=use_original_steps,
+                unconditional_guidance_scale=unconditional_guidance_scale,
+                unconditional_conditioning=unconditional_conditioning,
+            )
+            decoded = self._model.decode_first_stage(pred_x0)
+            decoded = torch.clamp((decoded + 1.0) / 2.0, 0.0, 1.0)
+            step_images.append(self._tensor_to_pil(decoded[0]))
+            del pred_x0
+            del decoded
+
+        return x_dec, step_images
 
     def _precision_context(self):
         if self.precision == "autocast" and self.device.type == "cuda":

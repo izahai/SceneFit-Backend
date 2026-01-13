@@ -107,27 +107,49 @@ def denoise_sd15(
             raise HTTPException(status_code=400, detail="Invalid image upload.") from exc
 
     try:
-        result = model.generate_from_image(
-            image=init_image,
-            prompt=prompt,
-            negative_prompt=negative_prompt,
-            steps=steps,
-            guidance_scale=guidance_scale,
-            strength=strength,
-            width=width,
-            height=height,
-            seed=seed,
-            noise_seed=noise_seed,
-            eta=eta,
-        )
+        if return_base64:
+            result, step_images = model.generate_from_image(
+                image=init_image,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                steps=steps,
+                guidance_scale=guidance_scale,
+                strength=strength,
+                width=width,
+                height=height,
+                seed=seed,
+                noise_seed=noise_seed,
+                eta=eta,
+                return_intermediates=True,
+            )
+        else:
+            result = model.generate_from_image(
+                image=init_image,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                steps=steps,
+                guidance_scale=guidance_scale,
+                strength=strength,
+                width=width,
+                height=height,
+                seed=seed,
+                noise_seed=noise_seed,
+                eta=eta,
+            )
+            step_images = []
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     if return_base64:
         png_bytes = _image_to_png_bytes(result)
+        step_images_base64 = [
+            base64.b64encode(_image_to_png_bytes(step_image)).decode("ascii")
+            for step_image in step_images
+        ]
         return {
             "seed": seed,
             "image_base64": base64.b64encode(png_bytes).decode("ascii"),
+            "step_images_base64": step_images_base64,
         }
 
     return Response(content=_image_to_png_bytes(result), media_type="image/png")
