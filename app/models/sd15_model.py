@@ -163,7 +163,7 @@ class SD15Model:
         noise_seed: int | None = None,
         eta: float | None = None,
         return_intermediates: bool = False,
-    ) -> Image.Image | tuple[Image.Image, list[Image.Image]]:
+    ) -> Image.Image | tuple[Image.Image, list[Image.Image], Image.Image | None]:
         if image is None:
             raise ValueError("Image is required for img2img denoising.")
         if not prompt or not prompt.strip():
@@ -227,6 +227,13 @@ class SD15Model:
                         c = self._model.get_learned_conditioning([prompt])
 
                         if return_intermediates:
+                            noise_decoded = self._model.decode_first_stage(z_enc)
+                            noise_decoded = torch.clamp(
+                                (noise_decoded + 1.0) / 2.0, 0.0, 1.0
+                            )
+                            noise_image = self._tensor_to_pil(noise_decoded[0])
+                            del noise_decoded
+
                             samples, step_images = self._decode_with_intermediates(
                                 z_enc,
                                 c,
@@ -243,13 +250,14 @@ class SD15Model:
                                 unconditional_conditioning=uc,
                             )
                             step_images = None
+                            noise_image = None
 
                         decoded = self._model.decode_first_stage(samples)
                         decoded = torch.clamp((decoded + 1.0) / 2.0, 0.0, 1.0)
 
             result_image = self._tensor_to_pil(decoded[0])
             if return_intermediates:
-                return result_image, step_images or []
+                return result_image, step_images or [], noise_image
             return result_image
         finally:
             try:

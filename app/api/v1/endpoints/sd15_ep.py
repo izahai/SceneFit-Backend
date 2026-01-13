@@ -97,8 +97,8 @@ def denoise_sd15(
         seed = random.randint(0, 2**32 - 1)
 
     if image is None:
-        width = 5000 if width is None else width
-        height = 2400 if height is None else height
+        width = 512 if width is None else width
+        height = 512 if height is None else height
         init_image = Image.new("RGB", (width, height), color=(127, 127, 127))
     else:
         try:
@@ -108,7 +108,7 @@ def denoise_sd15(
 
     try:
         if return_base64:
-            result, step_images = model.generate_from_image(
+            result, step_images, noise_image = model.generate_from_image(
                 image=init_image,
                 prompt=prompt,
                 negative_prompt=negative_prompt,
@@ -137,6 +137,7 @@ def denoise_sd15(
                 eta=eta,
             )
             step_images = []
+            noise_image = None
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -150,6 +151,11 @@ def denoise_sd15(
             "seed": seed,
             "image_base64": base64.b64encode(png_bytes).decode("ascii"),
             "step_images_base64": step_images_base64,
+            "noise_image_base64": (
+                base64.b64encode(_image_to_png_bytes(noise_image)).decode("ascii")
+                if noise_image is not None
+                else None
+            ),
         }
 
     return Response(content=_image_to_png_bytes(result), media_type="image/png")
