@@ -5,8 +5,9 @@ import random
 import threading
 from io import BytesIO
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import Response
+from PIL import Image
 
 from app.models.sd15_model import SD15Model
 
@@ -71,3 +72,62 @@ def generate_sd15(
         }
 
     return Response(content=_image_to_png_bytes(image), media_type="image/png")
+
+
+@router.post("/sd15/denoise")
+def denoise_sd15(
+    prompt: str = Form(...),
+    negative_prompt: str | None = Form(None),
+    image: UploadFile | None = File(None),
+    width: int | None = Form(None),
+    height: int | None = Form(None),
+    steps: int = Form(50),
+    guidance_scale: float = Form(7.5),
+    strength: float = Form(0.75),
+    eta: float = Form(0.0),
+    seed: int | None = Form(None),
+    noise_seed: int | None = Form(None),
+    return_base64: bool = Form(False),
+):
+    """
+    Img2img-style denoising: add fixed noise then denoise with prompts.
+    """
+    model = _get_model()
+    if seed is None:
+        seed = random.randint(0, 2**32 - 1)
+
+    if image is None:
+        width = 5000 if width is None else width
+        height = 2400 if height is None else height
+        init_image = Image.new("RGB", (width, height), color=(127, 127, 127))
+    else:
+        try:
+            init_image = Image.open(BytesIO(image.file.read())).convert("RGB")
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Invalid image upload.") from exc
+
+    try:
+        result = model.generate_from_image(
+            image=init_image,
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            steps=steps,
+            guidance_scale=guidance_scale,
+            strength=strength,
+            width=width,
+            height=height,
+            seed=seed,
+            noise_seed=noise_seed,
+            eta=eta,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if return_base64:
+        png_bytes = _image_to_png_bytes(result)
+        return {
+            "seed": seed,
+            "image_base64": base64.b64encode(png_bytes).decode("ascii"),
+        }
+
+    return Response(content=_image_to_png_bytes(result), media_type="image/png")

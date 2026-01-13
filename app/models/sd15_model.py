@@ -149,6 +149,108 @@ class SD15Model:
             if self.device.type == "cuda":
                 torch.cuda.empty_cache()
 
+    def generate_from_image(
+        self,
+        image: Image.Image,
+        prompt: str,
+        negative_prompt: str | None = None,
+        steps: int | None = None,
+        guidance_scale: float | None = None,
+        strength: float = 0.75,
+        width: int | None = None,
+        height: int | None = None,
+        seed: int | None = None,
+        noise_seed: int | None = None,
+        eta: float | None = None,
+    ) -> Image.Image:
+        if image is None:
+            raise ValueError("Image is required for img2img denoising.")
+        if not prompt or not prompt.strip():
+            raise ValueError("Prompt must be a non-empty string.")
+
+        if self._model is None or self._sampler is None:
+            self.load()
+
+        if not hasattr(self._sampler, "stochastic_encode"):
+            raise RuntimeError("Sampler does not support img2img; use ddim.")
+
+        steps = self.steps if steps is None else int(steps)
+        guidance_scale = self.guidance_scale if guidance_scale is None else float(guidance_scale)
+        eta = self.eta if eta is None else float(eta)
+
+        if strength < 0.0 or strength > 1.0:
+            raise ValueError("strength must be between 0.0 and 1.0")
+
+        width, height = self._resolve_init_size(image, width, height)
+        seed = self._resolve_seed(seed)
+        noise_seed = seed if noise_seed is None else int(noise_seed)
+
+        self._seed_everything(seed)
+
+        device = self.device
+        batch_size = 1
+        try:
+            init_tensor = self._prepare_init_image(image, width, height).to(device)
+
+            with torch.inference_mode():
+                with self._precision_context():
+                    with self._ema_scope():
+                        init_latent = self._model.get_first_stage_encoding(
+                            self._model.encode_first_stage(init_tensor)
+                        )
+
+                        self._sampler.make_schedule(
+                            ddim_num_steps=steps,
+                            ddim_eta=eta,
+                            verbose=False,
+                        )
+                        t_enc = int(strength * steps)
+
+                        noise_gen = torch.Generator(device=device).manual_seed(noise_seed)
+                        noise = torch.randn(
+                            init_latent.shape,
+                            generator=noise_gen,
+                            device=device,
+                            dtype=init_latent.dtype,
+                        )
+                        t_tensor = torch.tensor([t_enc] * batch_size, device=device)
+                        z_enc = self._sampler.stochastic_encode(
+                            init_latent,
+                            t_tensor,
+                            noise=noise,
+                        )
+
+                        uc = None
+                        if guidance_scale != 1.0:
+                            uc = self._model.get_learned_conditioning([negative_prompt or ""])
+                        c = self._model.get_learned_conditioning([prompt])
+
+                        samples = self._sampler.decode(
+                            z_enc,
+                            c,
+                            t_enc,
+                            unconditional_guidance_scale=guidance_scale,
+                            unconditional_conditioning=uc,
+                        )
+
+                        decoded = self._model.decode_first_stage(samples)
+                        decoded = torch.clamp((decoded + 1.0) / 2.0, 0.0, 1.0)
+
+            return self._tensor_to_pil(decoded[0])
+        finally:
+            try:
+                del init_tensor
+                del init_latent
+                del noise
+                del z_enc
+                del samples
+                del decoded
+            except Exception:
+                pass
+            gc.collect()
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+
     def _precision_context(self):
         if self.precision == "autocast" and self.device.type == "cuda":
             return torch.autocast(device_type="cuda")
@@ -377,6 +479,53 @@ class SD15Model:
                 ) from exc
             return load_file(str(ckpt_path), device=str(device))
         return torch.load(ckpt_path, map_location=device, weights_only=False)
+
+    @staticmethod
+    def _resolve_init_size(
+        image: Image.Image,
+        width: int | None,
+        height: int | None,
+    ) -> tuple[int, int]:
+        if width is None or height is None:
+            img_w, img_h = image.size
+            width = img_w if width is None else width
+            height = img_h if height is None else height
+        return SD15Model._normalize_size_to_multiple(width, height, multiple=32)
+
+    @staticmethod
+    def _normalize_size_to_multiple(
+        width: int,
+        height: int,
+        multiple: int = 32,
+    ) -> tuple[int, int]:
+        width = max(multiple, width)
+        height = max(multiple, height)
+        if width % multiple != 0 or height % multiple != 0:
+            new_width = width - (width % multiple)
+            new_height = height - (height % multiple)
+            logger.info(
+                "Adjusting size to multiples of %s: %sx%s -> %sx%s",
+                multiple,
+                width,
+                height,
+                new_width,
+                new_height,
+            )
+            width, height = new_width, new_height
+        return width, height
+
+    @staticmethod
+    def _prepare_init_image(
+        image: Image.Image,
+        width: int,
+        height: int,
+    ) -> torch.Tensor:
+        image = image.convert("RGB")
+        if (width, height) != image.size:
+            image = image.resize((width, height), Image.LANCZOS)
+        image_array = np.asarray(image).astype(np.float32) / 255.0
+        tensor = torch.from_numpy(image_array).permute(2, 0, 1).unsqueeze(0)
+        return tensor * 2.0 - 1.0
 
     @staticmethod
     def _normalize_size(width: int, height: int) -> tuple[int, int]:
