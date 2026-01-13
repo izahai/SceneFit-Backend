@@ -258,10 +258,10 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
     # -------------------------
     aes_model = ModelRegistry.get("aesthetic")
     aes_pred = score_outfits(aes_model, bg_path)
-    res4 = aes_pred["results"]
+    res4 = aes_pred["results"][0]
 
     response_payload = {
-        "bg_path": str(bg_path),
+        "img_name": image.filename,
         "approach_1": {
             "bg_caption": "",
             "query": descriptions,
