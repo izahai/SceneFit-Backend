@@ -260,6 +260,7 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
     res4 = aes_pred["results"]
 
     response_payload = {
+        "bg_path": str(bg_path),
         "approach_1": {
             "bg_caption": "",
             "query": descriptions,
@@ -276,7 +277,7 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
             "result": res3
         },
         "approach_4": {
-            "bg_caption": background_caption,
+            "bg_caption": "",
             "query": [],
             "result": res4
         },
