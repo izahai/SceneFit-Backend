@@ -41,5 +41,7 @@ class ModelRegistry:
         else:
             raise ValueError(f"Unknown model: {name}")
 
-        model.load()
+        load_method = getattr(model, "load", None)
+        if callable(load_method):
+            load_method()
         return model
