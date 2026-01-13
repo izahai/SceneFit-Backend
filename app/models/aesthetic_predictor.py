@@ -33,6 +33,9 @@ class AestheticPredictor:
         m.load_state_dict(s)
         m.eval()
         return m
+    
+    def load(self):
+        return None
 
     @torch.no_grad()
     def score_images(self, items):
