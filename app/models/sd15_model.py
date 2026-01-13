@@ -296,6 +296,9 @@ class SD15Model:
                         path = candidate
                         break
 
+            if path is None:
+                path = SD15Model._auto_download_ckpt(repo_path)
+
         if path is None or not path.exists():
             raise FileNotFoundError(
                 "SD1.5 checkpoint not found. Set SD15_CKPT_PATH to the .ckpt file "
@@ -304,6 +307,41 @@ class SD15Model:
             )
 
         return path.resolve()
+
+    @staticmethod
+    def _auto_download_ckpt(repo_path: Path) -> Path | None:
+        repo_id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
+        filename = os.getenv("SD15_CKPT_FILENAME", "v1-5-pruned-emaonly.ckpt")
+        target_dir = repo_path / "models/ldm/stable-diffusion-v1"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_path = target_dir / filename
+
+        if target_path.exists():
+            return target_path
+
+        try:
+            from huggingface_hub import hf_hub_download
+        except ImportError as exc:
+            raise RuntimeError(
+                "Missing dependency huggingface_hub for SD1.5 auto-download."
+            ) from exc
+
+        token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN")
+        try:
+            downloaded = hf_hub_download(
+                repo_id=repo_id,
+                filename=filename,
+                token=token,
+                local_dir=str(target_dir),
+                local_dir_use_symlinks=False,
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                "Failed to download SD1.5 checkpoint from Hugging Face. "
+                "Set SD15_CKPT_PATH manually or ensure HF_TOKEN is valid."
+            ) from exc
+
+        return Path(downloaded)
 
     @staticmethod
     def _load_checkpoint(ckpt_path: Path) -> dict:
