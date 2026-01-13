@@ -34,8 +34,8 @@ async def lifespan(app: FastAPI):
     ModelRegistry.get("vlm")
     
     #  ---------- PE Matcher ----------
-    # print("[START] Loading PE Matcher ...")
-    # ModelRegistry.get("pe_clip_matcher")
+    print("[START] Loading PE Matcher ...")
+    ModelRegistry.get("pe_clip_matcher")
 
     # ---------- Diffusion ----------
     # print("[START] Loading Diffusion ...")
