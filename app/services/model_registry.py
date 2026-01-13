@@ -40,7 +40,7 @@ class ModelRegistry:
                 text_encoder_only=True,
             )
         elif name == "sd15":
-            model = SD15Model()
+            model = SD15Model(device="cuda", precision="fp16")
         else:
             raise ValueError(f"Unknown model: {name}")
 
