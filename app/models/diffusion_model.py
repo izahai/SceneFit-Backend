@@ -40,7 +40,7 @@ class DiffusionModel:
         pipeline_type: str | None = None,
         hf_token: str | None = None,
         image_size: int = 512,
-        num_inference_steps: int = 30,
+        num_inference_steps: int = 10,
         noise_step_index: int | None = None,
         guidance_scale: float = 1.0,
         batch_size: int = 1,

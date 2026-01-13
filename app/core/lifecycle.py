@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
     #     model=PEClipModel(),
     # )
     
-    #  ---------- Qwen3 ----------
+    # ---------- Qwen3 ----------
     # print("[START] Loading Qwen3 ...")
     # ModelRegistry.register(
     #     name="vlm",
@@ -50,12 +50,13 @@ async def lifespan(app: FastAPI):
     #     model=PEClipMatcher(),
     # )
     
-    # ---------- Diffusion ----------
-    print("[START] Loading Diffusion ...")
-    ModelRegistry.register(
-        name="diffusion",
-        model=DiffusionModel(),
-    )
+    # # ---------- Diffusion ----------
+    # print("[START] Loading Diffusion ...")
+    # ModelRegistry.register(
+    #     name="diffusion",
+    #     model=DiffusionModel(),
+    # )
+    
     
     print("[START] Models loaded")
     print("[START] Backend started")
