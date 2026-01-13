@@ -15,7 +15,7 @@ class CLIPModel:
         self.model.eval()
     
     @torch.no_grad()
-    def embed_images(self, images) -> torch.Tensor:
+    def encode_image(self, images) -> torch.Tensor:
         batch = torch.stack([self.preprocess(img) for img in images]).to(self.device)
         embeddings = self.model.encode_image(batch)
         embeddings /= embeddings.norm(dim=-1, keepdim=True)
@@ -55,7 +55,7 @@ class AestheticPredictor:
     @torch.no_grad()
     def score_images(self, items):
         names, images = zip(*items)
-        embeddings = self.clip_model.embed_images(list(images))
+        embeddings = self.clip_model.encode_image(list(images))
         preds = self.head(embeddings).squeeze(-1).tolist()
         results = [{"name_clothes": n, "aesthetic_score": p} for n, p in zip(names, preds)]
         results.sort(key=lambda x: x["aesthetic_score"], reverse=True)

@@ -10,13 +10,15 @@ import time
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
 from app.services.clothes_captions import generate_clothes_captions_json
-
+from app.api.v1.endpoints.aesthetic_ep import retrieve_best_fit_aesthetic
 router = APIRouter()
 
 BG_DIR = Path("app/uploads/bg")
 CLOTHES_DIR = Path("app/data/2d")
 CLOTHES_CAPTION = Path("app/data/clothes_captions.json")
+RESULTS_DIR = Path("app/uploads/results")
 BG_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def _save_bg_upload(image: UploadFile) -> Path:
     suffix = Path(image.filename).suffix or ".png"
@@ -31,6 +33,14 @@ def _get_clothes_captions() -> dict:
         with open(CLOTHES_CAPTION, "r", encoding="utf-8") as f:
             return json.load(f)
     return generate_clothes_captions_json()
+
+
+def _write_result(payload: dict) -> Path:
+    filename = f"{time.time_ns()}_{uuid.uuid4().hex}.json"
+    output_path = RESULTS_DIR / filename
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    return output_path
 
 def _select_clothes_via_tournament(vlm, background_caption: str, clothes_captions: dict) -> str | None:
     if not clothes_captions:
@@ -239,12 +249,17 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
         str(bg_path),
         vlm.bg_caption,
     )
-
     clothes_captions = _get_clothes_captions()
     res3 = _select_clothes_via_tournament(vlm, background_caption, clothes_captions)
     res3 = {"name_clothes": res3, "similarity": 0, "best_description": "",}
 
-    return {
+    # -------------------------
+    # Baseline 4: Aesthetic Predictor
+    # -------------------------
+    aes_pred = retrieve_best_fit_aesthetic(image)
+    res4 = aes_pred["results"]
+
+    response_payload = {
         "approach_1": {
             "bg_caption": "",
             "query": descriptions,
@@ -260,4 +275,13 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
             "query": [],
             "result": res3
         },
+        "approach_4": {
+            "bg_caption": background_caption,
+            "query": [],
+            "result": res4
+        },
     }
+
+    _write_result(response_payload)
+
+    return response_payload
