@@ -48,7 +48,7 @@ def retrieve_best_matched_figures_neg_pe(
     # -------------------------------------------------
     # 3. Score using NegativePEModel
     # -------------------------------------------------
-    model = ModelRegistry.get("neg_pe")
+    model = ModelRegistry.get("negative_pe")
     scores = model.score_images(items)
 
     # -------------------------------------------------

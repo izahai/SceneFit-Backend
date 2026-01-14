@@ -66,8 +66,9 @@ class NegativePEModel:
         # Load prompts & encode once
         # -------------------------
         self.prompts = load_prompts("outfit_match")
-        self.clothing_emb = self.encode_text("clothing")
-        self.env_emb = self.encode_text("background")
+        self.clothing_emb = self.encode_text(["clothing"])[0]
+        self.env_emb = self.encode_text(["background"])[0]
+
         raw_prompt_embeddings = self.encode_text(self.prompts)
 
         self.prompt_embeddings = (
