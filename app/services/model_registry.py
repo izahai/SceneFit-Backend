@@ -7,7 +7,7 @@ from app.models.pe_clip_model import PEClipModel
 from app.models.vl_model import VLModel
 from app.models.pe_clip_matcher import PEClipMatcher
 from app.models.diffusion_model import DiffusionModel
-
+from app.models.negative_generator import NegativePEModel
 class ModelRegistry:
     _models: Dict[str, object] = {}
 
@@ -38,6 +38,8 @@ class ModelRegistry:
                 pipeline_type="sd3",
                 text_encoder_only=True,
             )
+        elif name == "negative_pe":
+            model = NegativePEModel()
         else:
             raise ValueError(f"Unknown model: {name}")
 
