@@ -79,6 +79,7 @@ class NegativePEModel:
         # Background subspace (ONLY background)
         # -------------------------------------------------
         self.background_images = load_images_from_folder("app/data/bg")
+        self.clothing_images = load_images_from_folder("app/data/2d")
         self.bg_subspace = self._build_image_subspace(
             self.background_images,
             variance_ratio=0.9,

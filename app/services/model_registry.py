@@ -43,5 +43,5 @@ class ModelRegistry:
         else:
             raise ValueError(f"Unknown model: {name}")
 
-        model.load()
+        #model.load()
         return model

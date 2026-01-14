@@ -13,7 +13,7 @@ BG_DIR = Path("app/uploads/bg")
 BG_DIR.mkdir(parents=True, exist_ok=True)
 
 
-@router.post("/neg_pe")
+@router.post("/negative_pe")
 def retrieve_best_matched_figures_neg_pe(
     image: UploadFile = File(...),
     top_k: int = Form(5),
