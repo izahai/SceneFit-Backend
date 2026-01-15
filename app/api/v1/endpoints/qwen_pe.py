@@ -1,8 +1,8 @@
 from fastapi import APIRouter, UploadFile, File
 from PIL import Image
 
-from app.services.model_registry import ModelRegistry
-from app.services.compose import compose
+from services.model_registry import ModelRegistry
+from services.compose import compose
 
 router = APIRouter()
 

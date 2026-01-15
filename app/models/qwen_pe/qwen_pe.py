@@ -4,9 +4,9 @@ import json
 import yaml
 import numpy as np
 
-from app.models.qwen_pe.qwen_embed import QwenVLEmbedder
-from app.models.negative_generator import NegativePEModel
-from app.models.vl_model import VLModel
+from models.qwen_pe.qwen_embed import QwenVLEmbedder
+from models.negative_generator import NegativePEModel
+from models.vl_model import VLModel
 
 
 class QwenPE:

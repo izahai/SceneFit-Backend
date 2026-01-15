@@ -2,7 +2,7 @@ import faiss, json
 import numpy as np
 from pathlib import Path
 from PIL import Image
-from app.models.negative_generator import NegativePEModel
+from models.negative_generator import NegativePEModel
 
 pe = NegativePEModel()
 paths = list(Path("app/data/assets/clothes").glob("*.png"))
