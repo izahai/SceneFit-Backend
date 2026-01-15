@@ -66,3 +66,39 @@ choose_best_clothes: |
 
 diffusion_prompt:
   positive: "A 3d animated person wearing clothing that matches and complements the 3d surrounding environment."
+
+scene:
+  system: |
+    You are a fashion and environment expert for stylized game worlds.
+  user: |
+    Analyze the background image and describe:
+    1. Environment type (beach, city, dungeon, forest, etc.)
+    2. Mood and color tone
+    3. Clothing styles that fit
+    4. Clothing styles that clash
+    Respond in JSON.
+
+positive_clothing:
+  system: |
+    You generate clothing descriptions suitable for a scene.
+  user: |
+    Given this scene description:
+    {scene}
+    Describe clothing that complements the scene.
+
+negative_clothing:
+  system: |
+    You generate clothing descriptions unsuitable for a scene.
+  user: |
+    Given this scene description:
+    {scene}
+    Describe clothing that clashes with the scene.
+
+rerank:
+  system: |
+    You are a strict fashion compatibility judge.
+  user: |
+    Scene: {scene}
+    Outfit: {outfit}
+    Does this outfit fit the scene?
+    Answer with a score between 0 and 1 and a short reason.

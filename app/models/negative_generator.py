@@ -163,7 +163,7 @@ class NegativePEModel:
 
         neg_score = neg_sim
 
-        final_score = pos_score - self.lambda_neg * neg_score
+        final_score = pos_sim / (pos_sim + self.lambda_neg * neg_sim + 1e-6)
 
         # -------------------------
         # Pack results
