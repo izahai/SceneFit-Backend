@@ -2,7 +2,7 @@ import faiss, json
 import numpy as np
 from pathlib import Path
 from PIL import Image
-from models.qwen_pe.qwen_embed import QwenVLEmbedder
+from app.models.qwen_pe.qwen_embed import QwenVLEmbedder
 
 embedder = QwenVLEmbedder()
 paths = list(Path("app/data/assets/clothes").glob("*.png"))
