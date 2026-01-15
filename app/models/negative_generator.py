@@ -159,16 +159,9 @@ class NegativePEModel:
         # -------------------------
         # Aggregate
         # -------------------------
-        pos_score = (
-            pos_sim.topk(
-                k=min(topk_pos, pos_sim.shape[1]),
-                dim=1,
-            )
-            .values
-            .mean(dim=1)
-        )
+        pos_score = pos_sim
 
-        neg_score = neg_sim.max(dim=1).values
+        neg_score = neg_sim
 
         final_score = pos_score - self.lambda_neg * neg_score
 
