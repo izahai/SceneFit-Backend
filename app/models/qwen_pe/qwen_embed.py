@@ -7,10 +7,10 @@ class QwenVLEmbedder:
     def __init__(self, device="cuda"):
         self.device = device
         self.processor = AutoProcessor.from_pretrained(
-            "Qwen/Qwen3-VL-Embedding-4B"
+            "Qwen/Qwen3-VL-Embedding-8B"
         )
         self.model = AutoModel.from_pretrained(
-            "Qwen/Qwen3-VL-Embedding-4B"
+            "Qwen/Qwen3-VL-Embedding-8B"
         ).to(device).eval()
 
     def encode_image(self, img: Image.Image) -> np.ndarray:

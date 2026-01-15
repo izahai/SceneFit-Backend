@@ -1,3 +1,4 @@
+import os
 import faiss, json
 import numpy as np
 from pathlib import Path
@@ -5,13 +6,15 @@ from PIL import Image
 from app.models.negative_generator import NegativePEModel
 
 pe = NegativePEModel()
-paths = list(Path("app/data/assets/clothes").glob("*.png"))
+paths = list(Path("app/data/2d").glob("*.png"))
 
 imgs = [Image.open(p) for p in paths]
 embs = pe.encode_image(imgs).cpu().numpy().astype("float32")
 
 index = faiss.IndexFlatIP(embs.shape[1])
 index.add(embs)
+
+os.makedirs("app/data/faiss", exist_ok=True)
 
 faiss.write_index(index, "app/data/faiss/pe.index")
 json.dump(
