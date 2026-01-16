@@ -12,27 +12,33 @@ def main():
 
     embs, meta = [], []
 
-    for p in paths:
-        emb = embedder.encode_image(Image.open(p))
-        embs.append(emb)
-        meta.append({"id": p.stem, "file": str(p)})
+    embs = embedder.encode_batch(paths)
 
-    embs = np.stack(embs).astype("float32")
+    meta = [{"id": p.stem, "file": str(p)} for p in paths]
+
+    # 5. Normalization (Crucial for Cosine Similarity)
+    embs = embs.astype("float32")
+    faiss.normalize_L2(embs) # In-place normalization
+
+    # 6. FAISS Indexing
     dim = embs.shape[1]
+    print(f"Embedding dimension: {dim}")
 
-    index = faiss.IndexIVFPQ(
-        faiss.IndexFlatIP(dim),
-        dim,
-        2048,
-        16,
-        8,
-    )
-    index.train(embs)
-    index.add(embs)
+    # Use IndexFlatIP for exact search (best for < 100k items)
+    # It calculates Dot Product. Since vectors are normalized, Dot Product == Cosine Similarity
+    index = faiss.IndexFlatIP(dim) 
+    
+    index.add(embs) # No training needed for Flat index
 
-    faiss.write_index(index, "app/data/faiss/qwen.index")
-    json.dump(meta, open("app/data/faiss/qwen_meta.json", "w"))
+    # 7. Save
+    output_dir = Path("app/data/faiss")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    faiss.write_index(index, str(output_dir / "qwen.index"))
+    with open(output_dir / "qwen_meta.json", "w") as f:
+        json.dump(meta, f)
+        
+    print("Indexing complete.")
 
 if __name__ == "__main__":
-    mp.freeze_support()
     main()

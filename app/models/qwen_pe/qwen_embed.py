@@ -1,3 +1,4 @@
+from zipfile import Path
 from vllm import LLM, EngineArgs
 from vllm.multimodal.utils import fetch_image
 import numpy as np
@@ -12,27 +13,54 @@ class QwenVLEmbedder:
             engine_args=EngineArgs(
                 model="Qwen/Qwen3-VL-Embedding-2B",
                 tensor_parallel_size=1,
-                max_batch_size=8,
-                max_input_length=4096,
-                max_output_length=1024,
-                use_gpu=True,
+                max_model_length=1024,
+                limit_mm_per_prompt = {"image": 1}
             )
         )
 
-    def encode_image(self, image: Image.Image):
-        inputs = [{
-            "prompt": self.llm.llm_engine.tokenizer.apply_chat_template(
-                [
-                    {"role": "user", "content": [
-                        {"type": "image", "image": image},
-                        {"type": "text", "text": ""}
-                    ]}
-                ],
-                tokenize=False,
-                add_generation_prompt=True,
-            ),
-            "multi_modal_data": {"image": image},
-        }]
+    def encode_batch(self, image_paths: list[Path]):
+        """
+        Process images in a single batch call.
+        """
+        inputs = []
+        
+        # 1. Pre-construct all prompts
+        for p in image_paths:
+            # Check if file exists/is valid image to prevent crashes
+            try:
+                img = Image.open(p).convert("RGB")
+                
+                # Construct conversation structure
+                conversation = [
+                    {
+                        "role": "user", 
+                        "content": [
+                            {"type": "image", "image": img},
+                            {"type": "text", "text": "Describe this image for retrieval."}
+                        ]
+                    }
+                ]
+                
+                # Apply template
+                prompt = self.llm.llm_engine.tokenizer.apply_chat_template(
+                    conversation,
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
+                
+                inputs.append({
+                    "prompt": prompt,
+                    "multi_modal_data": {"image": img},
+                })
+            except Exception as e:
+                print(f"Skipping {p}: {e}")
+                continue
 
-        output = self.llm.embed(inputs)[0]
-        return np.array(output.outputs.embedding)
+        # 2. Run Batch Inference
+        # vLLM handles the internal batching based on available GPU memory
+        outputs = self.llm.embed(inputs)
+        
+        # 3. Extract Embeddings
+        # Note: output.outputs is a list, we take the first element's embedding
+        embeddings = [out.outputs.embedding for out in outputs]
+        return np.array(embeddings)        
