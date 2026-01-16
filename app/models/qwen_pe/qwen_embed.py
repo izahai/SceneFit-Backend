@@ -1,36 +1,31 @@
-import torch
+from vllm import LLM, EngineArgs
+from vllm.multimodal.utils import fetch_image
 import numpy as np
 from PIL import Image
-from transformers import AutoProcessor, AutoModel
 
 class QwenVLEmbedder:
-    def __init__(self, device="cuda"):
-        self.device = device
-        self.processor = AutoProcessor.from_pretrained(
-            "Qwen/Qwen3-VL-Embedding-2B"
+    def __init__(self):
+        self.llm = LLM(
+            model="Qwen/Qwen3-VL-Embedding-2B",
+            runner="pooling",
+            dtype="bfloat16",
+            trust_remote_code=True,
         )
-        self.model = AutoModel.from_pretrained(
-            "Qwen/Qwen3-VL-Embedding-2B"
-        ).to(device).eval()
 
-    def encode_image(self, img: Image.Image):
-        inputs = self.processor(
-            text="<image>",
-            images=img,
-            return_tensors="pt"
-        ).to(self.device)
+    def encode_image(self, image: Image.Image):
+        inputs = [{
+            "prompt": self.llm.llm_engine.tokenizer.apply_chat_template(
+                [
+                    {"role": "user", "content": [
+                        {"type": "image", "image": image},
+                        {"type": "text", "text": ""}
+                    ]}
+                ],
+                tokenize=False,
+                add_generation_prompt=True,
+            ),
+            "multi_modal_data": {"image": image},
+        }]
 
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-
-        # Qwen3-VL embedding head
-        emb = outputs.image_embeds  # or outputs.pooler_output depending on config
-        return emb[0].cpu().numpy()
-
-
-    def encode_text(self, text: str) -> np.ndarray:
-        inputs = self.processor(text=text, return_tensors="pt").to(self.device)
-        with torch.no_grad():
-            emb = self.model(**inputs).pooler_output
-        emb = emb / emb.norm(dim=-1, keepdim=True)
-        return emb.cpu().numpy()[0]
+        output = self.llm.embed(inputs)[0]
+        return np.array(output.outputs.embedding)
