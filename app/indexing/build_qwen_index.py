@@ -3,29 +3,36 @@ import numpy as np
 from pathlib import Path
 from PIL import Image
 from app.models.qwen_pe.qwen_embed import QwenVLEmbedder
+import multiprocessing as mp
+def main():
 
-embedder = QwenVLEmbedder()
-paths = list(Path("app/data/2d").glob("*.png"))
+    embedder = QwenVLEmbedder()
+    embedder.load()
+    paths = list(Path("app/data/2d").glob("*.png"))
 
-embs, meta = [], []
+    embs, meta = [], []
 
-for p in paths:
-    emb = embedder.encode_image(Image.open(p))
-    embs.append(emb)
-    meta.append({"id": p.stem, "file": str(p)})
+    for p in paths:
+        emb = embedder.encode_image(Image.open(p))
+        embs.append(emb)
+        meta.append({"id": p.stem, "file": str(p)})
 
-embs = np.stack(embs).astype("float32")
-dim = embs.shape[1]
+    embs = np.stack(embs).astype("float32")
+    dim = embs.shape[1]
 
-index = faiss.IndexIVFPQ(
-    faiss.IndexFlatIP(dim),
-    dim,
-    2048,
-    16,
-    8,
-)
-index.train(embs)
-index.add(embs)
+    index = faiss.IndexIVFPQ(
+        faiss.IndexFlatIP(dim),
+        dim,
+        2048,
+        16,
+        8,
+    )
+    index.train(embs)
+    index.add(embs)
 
-faiss.write_index(index, "app/data/faiss/qwen.index")
-json.dump(meta, open("app/data/faiss/qwen_meta.json", "w"))
+    faiss.write_index(index, "app/data/faiss/qwen.index")
+    json.dump(meta, open("app/data/faiss/qwen_meta.json", "w"))
+
+if __name__ == "__main__":
+    mp.freeze_support()
+    main()

@@ -5,11 +5,18 @@ from PIL import Image
 
 class QwenVLEmbedder:
     def __init__(self):
+        self.llm = None
+
+    def load(self):
         self.llm = LLM(
-            model="Qwen/Qwen3-VL-Embedding-2B",
-            runner="pooling",
-            dtype="bfloat16",
-            trust_remote_code=True,
+            engine_args=EngineArgs(
+                model="Qwen/Qwen3-VL-Embedding-2B",
+                tensor_parallel_size=1,
+                max_batch_size=8,
+                max_input_length=4096,
+                max_output_length=1024,
+                use_gpu=True,
+            )
         )
 
     def encode_image(self, image: Image.Image):
