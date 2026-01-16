@@ -5,7 +5,7 @@ from PIL import Image
 from app.models.qwen_pe.qwen_embed import QwenVLEmbedder
 
 embedder = QwenVLEmbedder()
-paths = list(Path("app/data/assets/clothes").glob("*.png"))
+paths = list(Path("app/data/2d").glob("*.png"))
 
 embs, meta = [], []
 
