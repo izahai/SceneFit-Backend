@@ -3,6 +3,7 @@ from torch import Tensor
 import torch.nn.functional as F
 from app.utils.device import resolve_device, resolve_dtype, resolve_autocast
 from transformers import AutoTokenizer, AutoModel
+from pathlib import Path
 
 class Qwen3Emb_Model():
     def __init__(self, device: str | None = None, config_name='Qwen/Qwen3-Embedding-0.6B'):
@@ -64,3 +65,48 @@ class Qwen3Emb_Model():
             all_embeddings.append(embeddings)
 
         return torch.cat(all_embeddings, dim=0)        
+    
+    @torch.no_grad()
+    def match_clothes_captions(
+        self,
+        descriptions: list[str],
+        clothes_captions: dict[str, str],
+        top_k: int | None = None,
+    ):
+        """
+        descriptions: list of AI-generated text strings
+        clothes_captions: {image_name: caption}
+        """
+        if not clothes_captions:
+            return []
+
+        names = list(clothes_captions.keys())
+        captions = [clothes_captions[name] for name in names]
+
+        query_embs = self.encode(descriptions)     # (N_text, D)
+        query_embs = F.normalize(query_embs, dim=-1)
+
+        caption_embs = self.encode(captions)       # (N_caption, D)
+        caption_embs = F.normalize(caption_embs, dim=-1)
+
+        # Similarity: caption ↔ all descriptions
+        # (N_caption, D) @ (D, N_text) → (N_caption, N_text)
+        sim_matrix = caption_embs @ query_embs.T
+
+        # For each caption, take the best matching description
+        best_scores, best_text_idx = sim_matrix.max(dim=1)
+        results = [
+            {
+                "name_clothes": Path(names[i]).stem,
+                "similarity": float(best_scores[i]),
+                "best_description": descriptions[int(best_text_idx[i])],
+            }
+            for i in range(len(names))
+        ]
+
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+
+        if top_k is not None:
+            results = results[:top_k]
+
+        return results
