@@ -14,7 +14,6 @@ class QwenVLEmbedder:
             engine_args=EngineArgs(
                 model="Qwen/Qwen3-VL-Embedding-2B",
                 runner="pooling",
-                dtype=args.dtype,
                 trust_remote_code=True
             )
         )
