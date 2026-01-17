@@ -1,65 +1,34 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import FastAPI, UploadFile, File
 from PIL import Image
-
+import io
+from app.models.qwen_pe.qwen_pe import QwenPEModel
 from app.services.model_registry import ModelRegistry
-from app.services.compose import compose
 
-router = APIRouter()
+app = FastAPI()
+retriever = ModelRegistry.get_model("qwen_pe") # Load model once on startup
 
-
-@router.post("/retrieve")
-def retrieve(image: UploadFile = File(...)):
-    model = ModelRegistry.get("qwen_pe")
-
-    # -------------------------------------------------
-    # 1. Load background image
-    # -------------------------------------------------
-    bg_image = Image.open(image.file).convert("RGBA")
-
-    # -------------------------------------------------
-    # 2. Scene understanding (Qwen-VL)
-    # -------------------------------------------------
-    scene = model.parse_scene(bg_image)
-
-    # -------------------------------------------------
-    # 3. Generate positive / negative clothing prompts
-    # -------------------------------------------------
-    pos_text, neg_text = model.generate_pos_neg(scene)
-
-    # -------------------------------------------------
-    # 4. Stage-1 Recall (FAISS)
-    # -------------------------------------------------
-    candidates = model.recall(pos_text)
-
-    # -------------------------------------------------
-    # 5. Stage-2 Rerank (NO RENDER)
-    # -------------------------------------------------
-    ranked = model.fast_rerank(candidates, pos_text, neg_text)
-
-    # -------------------------------------------------
-    # 6. Stage-3 Rerank (RENDER + PE-Core)
-    # -------------------------------------------------
-    results = []
-    for meta, _ in ranked[:10]:
-        cloth = Image.open(meta["file"]).convert("RGBA")
-        composed = compose(bg_image, cloth)
-
-        score = model.pe.score_images(
-            [(meta["id"], composed)],
-            pos_prompt=pos_text,
-            neg_prompt=neg_text,
-        )
-
-        results.append(
-            {
-                "id": meta["id"],
-                "score": float(score),
-            }
-        )
-
+@app.post("/retrieve")
+async def retrieve_fashion(file: UploadFile = File(...)):
+    # 1. Read Image
+    content = await file.read()
+    scene_image = Image.open(io.BytesIO(content)).convert("RGB")
+    
+    # 2. Understand Scene
+    scene_data = retriever.analyze_scene(scene_image)
+    
+    # 3. Generate Search Query (HyDE)
+    # "What should I wear?" -> "A linen shirt..."
+    ideal_outfit_text = retriever.generate_search_query(scene_data)
+    
+    # 4. Fast Retrieval (Recall)
+    candidates = retriever.recall(ideal_outfit_text, k=20)
+    
+    # 5. Intelligent Reranking (Precision)
+    # Looks at the scene and clothing pairs together
+    final_results = retriever.rerank(scene_image, candidates, top_n=5)
+    
     return {
-        "results": results[:5],
-        "scene": scene,
-        "positive_prompt": pos_text,
-        "negative_prompt": neg_text,
+        "scene_analysis": scene_data,
+        "generated_query": ideal_outfit_text,
+        "recommendations": final_results
     }
