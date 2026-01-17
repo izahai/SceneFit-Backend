@@ -1,4 +1,5 @@
 from zipfile import Path
+from app.services.pe_core import args
 from vllm import LLM, EngineArgs
 from vllm.multimodal.utils import fetch_image
 import numpy as np
@@ -12,9 +13,9 @@ class QwenVLEmbedder:
         self.llm = LLM(
             engine_args=EngineArgs(
                 model="Qwen/Qwen3-VL-Embedding-2B",
-                tensor_parallel_size=1,
-                max_model_length=1024,
-                limit_mm_per_prompt = {"image": 1}
+                runner="pooling",
+                dtype=args.dtype,
+                trust_remote_code=True
             )
         )
 
