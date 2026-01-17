@@ -10,13 +10,12 @@ class QwenVLEmbedder:
         self.llm = None
 
     def load(self):
-        self.llm = LLM(
-            engine_args=EngineArgs(
-                model="Qwen/Qwen3-VL-Embedding-2B",
-                runner="pooling",
-                trust_remote_code=True
-            )
+        engine_args = EngineArgs(
+            model="Qwen/Qwen3-VL-Embedding-2B",
+            runner="pooling",
+            trust_remote_code=True
         )
+        self.llm = LLM(**vars(engine_args))
 
     def encode_batch(self, image_paths: list[Path]):
         """
