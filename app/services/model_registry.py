@@ -8,7 +8,7 @@ from app.models.vl_model import VLModel
 from app.models.pe_clip_matcher import PEClipMatcher
 from app.models.diffusion_model import DiffusionModel
 from app.models.asr_model import ASRModel
-from app.models.text_emb_model import TextEmbModel
+from app.models.text_macher_model import TextMatcherModel
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
@@ -42,8 +42,8 @@ class ModelRegistry:
             )
         elif name == "asr":
             model = ASRModel()
-        elif name == "text_emb":
-            model = TextEmbModel()
+        elif name == "text_matcher":
+            model = TextMatcherModel()
         else:
             raise ValueError(f"Unknown model: {name}")
 

@@ -5,7 +5,7 @@ from app.utils.device import resolve_device, resolve_dtype, resolve_autocast
 from transformers import AutoTokenizer, AutoModel
 from pathlib import Path
 
-class TextEmbModel():
+class TextMatcherModel():
     def __init__(self, device: str | None = None, config_name='Qwen/Qwen3-Embedding-0.6B'):
         self.device = resolve_device(device)
         self.dtype = resolve_dtype(self.device)
@@ -64,13 +64,34 @@ class TextEmbModel():
 
             all_embeddings.append(embeddings)
 
-        return torch.cat(all_embeddings, dim=0)        
+        return torch.cat(all_embeddings, dim=0)   
     
+    @torch.no_grad()
+    def encode_normalized(self, texts: list[str]):
+        embs = self.encode(texts)
+        return F.normalize(embs, dim=-1)
+    
+    @torch.no_grad()
+    def apply_feedback(
+        self,
+        query_embs: torch.Tensor,   # (N_text, D)
+        instruction_text: str | None,
+        beta: float = 0.2,
+    ):
+        if instruction_text is None:
+            return query_embs
+
+        instr_emb = self.encode_normalized([instruction_text])  # (1, D)
+        return F.normalize(query_embs + beta * instr_emb, dim=-1)
+
+
     @torch.no_grad()
     def match_clothes_captions(
         self,
         descriptions: list[str],
         clothes_captions: dict[str, str],
+        fb_text: str | None = None,
+        beta: float = 0.2,
         top_k: int | None = None,
     ):
         """
@@ -83,11 +104,16 @@ class TextEmbModel():
         names = list(clothes_captions.keys())
         captions = [clothes_captions[name] for name in names]
 
-        query_embs = self.encode(descriptions)     # (N_text, D)
-        query_embs = F.normalize(query_embs, dim=-1)
+        # query_embs = self.encode(descriptions)     # (N_text, D)
+        # query_embs = F.normalize(query_embs, dim=-1)
+        
+        query_embs = self.encode_normalized(descriptions)
+        query_embs = self.apply_feedback(query_embs, fb_text, beta)
 
-        caption_embs = self.encode(captions)       # (N_caption, D)
-        caption_embs = F.normalize(caption_embs, dim=-1)
+        # caption_embs = self.encode(captions)       # (N_caption, D)
+        # caption_embs = F.normalize(caption_embs, dim=-1)
+
+        caption_embs = self.encode_normalized(captions)
 
         # Similarity: caption ↔ all descriptions
         # (N_caption, D) @ (D, N_text) → (N_caption, N_text)
