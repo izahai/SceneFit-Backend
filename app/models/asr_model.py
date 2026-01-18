@@ -1,3 +1,4 @@
+import unsloth
 from unsloth import FastModel
 from transformers import WhisperForConditionalGeneration, pipeline
 import torch
