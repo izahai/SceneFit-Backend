@@ -3,7 +3,7 @@ from transformers import WhisperForConditionalGeneration, pipeline
 import torch
 from app.utils.device import resolve_device, resolve_dtype, resolve_autocast
 
-class ASR_Model():
+class ASRModel():
     def __init__(self, device: str | None = None):
         self.device = resolve_device(device)
         self.model, self.tokenizer = FastModel.from_pretrained(

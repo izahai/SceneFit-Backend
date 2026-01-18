@@ -5,7 +5,7 @@ from app.utils.device import resolve_device, resolve_dtype, resolve_autocast
 from transformers import AutoTokenizer, AutoModel
 from pathlib import Path
 
-class Qwen3Emb_Model():
+class TextEmbModel():
     def __init__(self, device: str | None = None, config_name='Qwen/Qwen3-Embedding-0.6B'):
         self.device = resolve_device(device)
         self.dtype = resolve_dtype(self.device)
