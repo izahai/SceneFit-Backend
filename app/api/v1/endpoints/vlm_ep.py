@@ -74,9 +74,9 @@ def _rank_clothes_by_image(descriptions: list[str], top_k: int = 10):
         top_k=top_k,
     )
 
-def _rank_clothes_by_caption(descriptions: list[str], top_k: int = 10):
+def _rank_clothes_by_caption(descriptions: list[str], top_k: int = 10, matcher_name: str = "pe_clip_matcher"):
     clothes_captions = _get_clothes_captions()
-    matcher = ModelRegistry.get("pe_clip_matcher")
+    matcher = ModelRegistry.get(matcher_name)
     return matcher.match_clothes_captions(
         descriptions=descriptions,
         clothes_captions=clothes_captions,
