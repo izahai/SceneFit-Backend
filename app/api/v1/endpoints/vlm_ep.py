@@ -7,6 +7,8 @@ from fastapi import APIRouter, UploadFile, File
 from PIL import Image
 import time
 import torch
+import torch.nn.functional as F
+
 
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
