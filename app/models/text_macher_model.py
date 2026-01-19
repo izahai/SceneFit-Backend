@@ -82,7 +82,106 @@ class TextMatcherModel():
         instr_emb = self.encode_normalized([instruction_text])  # (1, D)
         return F.normalize(query_embs + beta * instr_emb, dim=-1)
 
+    
+    @torch.no_grad
+    def get_reformulated_query(self, descriptions: list[str],
+                        topk_captions: list[str],
+                        fb_text: str,
+                        threshold: float,
+                        alpha: float,
+                        beta: float = 1.0,
+                        gamma: float = 1.0):
+        
+        query_embs = self.encode_normalized(descriptions)
+        caption_embs = self.encode_normalized(topk_captions)
+        fb_embs = self.encode_normalized(fb_text)           # (M, D) or (D,)
+        
+        if fb_embs.dim() == 1:
+            fb_embs = fb_embs.unsqueeze(0)
 
+        # Similarity matrix: (N_captions, N_feedback)
+        best_sim_matrix = caption_embs @ fb_embs.T
+
+        relevant_mask = best_sim_matrix > threshold
+        irrelevant_mask = best_sim_matrix <= threshold
+
+        relevant_embs = caption_embs[relevant_mask.any(dim=1)]
+        irrelevant_embs = caption_embs[irrelevant_mask.any(dim=1)]
+
+        # Means (guard against empty sets)
+        rel_mean = relevant_embs.mean(dim=0) if relevant_embs.numel() > 0 else 0.0
+        irrel_mean = irrelevant_embs.mean(dim=0) if irrelevant_embs.numel() > 0 else 0.0
+
+        reform_q = (
+            alpha * query_embs +
+            beta * rel_mean -
+            gamma * irrel_mean
+        )
+        return reform_q
+    
+    @torch.no_grad()
+    def get_clothes_feedback(
+        self,
+        descriptions: list[str],
+        clothes_captions: dict[str, str],
+        fb_text: str,
+        top_k: int | None = None,
+        tau: float = 0.1,        # temperature (important)
+    ):
+        if not clothes_captions:
+            return []
+
+        # -------------------------
+        # Encode descriptions (Q)
+        # -------------------------
+        Q = self.encode_normalized(descriptions)      # (N_desc, D)
+
+        # -------------------------
+        # Encode feedback (f)
+        # -------------------------
+        f = self.encode_normalized([fb_text])[0]      # (D,)
+
+        # -------------------------
+        # Attention over descriptions
+        # -------------------------
+        # similarity between feedback and each description
+        attn_logits = (Q @ f) / tau                   # (N_desc,)
+        weights = torch.softmax(attn_logits, dim=0)   # (N_desc,)
+
+        # -------------------------
+        # Collapse to single query
+        # -------------------------
+        q_fb = torch.sum(weights[:, None] * Q, dim=0) # (D,)
+        q_fb = F.normalize(q_fb, dim=0)
+
+        # -------------------------
+        # Encode clothes captions
+        # -------------------------
+        names = list(clothes_captions.keys())
+        captions = [clothes_captions[n] for n in names]
+        caption_embs = self.encode_normalized(captions)  # (N_caps, D)
+
+        # -------------------------
+        # Final scoring
+        # -------------------------
+        scores = caption_embs @ q_fb                  # (N_caps,)
+
+        results = [
+            {
+                "name_clothes": Path(names[i]).stem,
+                "similarity": float(scores[i]),
+                "best_description": descriptions[int(weights.argmax())],
+            }
+            for i in range(len(names))
+        ]
+
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+
+        if top_k is not None:
+            results = results[:top_k]
+
+        return results
+    
     @torch.no_grad()
     def match_clothes_captions(
         self,
@@ -101,15 +200,9 @@ class TextMatcherModel():
 
         names = list(clothes_captions.keys())
         captions = [clothes_captions[name] for name in names]
-
-        # query_embs = self.encode(descriptions)     # (N_text, D)
-        # query_embs = F.normalize(query_embs, dim=-1)
         
         query_embs = self.encode_normalized(descriptions)
         query_embs = self.apply_feedback(query_embs, fb_text, beta)
-
-        # caption_embs = self.encode(captions)       # (N_caption, D)
-        # caption_embs = F.normalize(caption_embs, dim=-1)
 
         caption_embs = self.encode_normalized(captions)
 

@@ -91,7 +91,7 @@ def _rank_clothes_by_feedback(descriptions: list[str],
                             fb_text: str | None = None):
     clothes_captions = _get_clothes_captions()
     matcher = ModelRegistry.get(matcher_name)
-    return matcher.match_clothes_captions(
+    return matcher.get_clothes_feedback(
         descriptions=descriptions,
         clothes_captions=clothes_captions,
         fb_text=fb_text,
