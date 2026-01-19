@@ -35,6 +35,10 @@ class VLModel:
     # -------------------------
     # Core generation helper
     # -------------------------
+    def to(self, device: str):
+        if hasattr(self, "model") and self.model is not None:
+            self.model.to(device)
+        return self
     @torch.no_grad()
     def _generate(self, messages: list[dict]) -> str:
         inputs = self.processor.apply_chat_template(
@@ -192,3 +196,6 @@ class VLModel:
             "color_outfits": color_outfits,
             "scene_caption": scene_caption,
         }
+    
+
+

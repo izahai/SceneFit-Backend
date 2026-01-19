@@ -291,14 +291,16 @@ def composed_retrieval(image: UploadFile = File(...)):
     bg_path = _save_bg_upload(image)
 
     vlm = ModelRegistry.get("vlm")
-    matcher = ModelRegistry.get("pe_clip_matcher")
-    reranker = ModelRegistry.get("qwen_reranker")
+    
 
     # -------------------------
     # Extract query signals
     # -------------------------
     signals = vlm.extract_query_signals(str(bg_path))
+    vlm.to("cpu")
+    torch.cuda.empty_cache()
 
+    matcher = ModelRegistry.get("pe_clip_matcher")
     # -------------------------
     # Background image embedding
     # -------------------------
@@ -314,6 +316,8 @@ def composed_retrieval(image: UploadFile = File(...)):
         bg_emb,
         matcher,
     )
+    
+
 
     # -------------------------
     # FAISS retrieval (coarse)
@@ -322,7 +326,9 @@ def composed_retrieval(image: UploadFile = File(...)):
         query_emb=query_emb,
         top_k=10,
     )
-
+    matcher.to("cpu")
+    torch.cuda.empty_cache()
+    reranker = ModelRegistry.get("qwen_reranker")
     # Attach captions + images for reranker
     for c in candidates:
         c["image"] = Image.open(
