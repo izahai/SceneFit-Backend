@@ -3,7 +3,7 @@
 import json
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Form
 from PIL import Image
 import time
 
@@ -129,11 +129,13 @@ def get_clothes_by_image_match(image: UploadFile = File(...)):
     }
 
 @router.post("/vlm-clip-caption-matching")
-def get_clothes_by_image_match_captions(image: UploadFile = File(...)):
+def get_clothes_by_image_match_captions(image: UploadFile = File(...),
+                                        fb_text: str | None = Form(None)):
     """
     1. Upload image
     2. VLM generates clothing descriptions
-    3. PE-CLIP ranks clothes by similarity using captions JSON
+    3. Matcher ranks clothes by similarity using captions JSON
+    4. (Optional) Refine with feedback string 
     """
 
     # -------------------------
@@ -150,7 +152,7 @@ def get_clothes_by_image_match_captions(image: UploadFile = File(...)):
     # -------------------------
     # Load clothes captions + match
     # -------------------------
-    results = _rank_clothes_by_caption(descriptions, top_k=10)
+    results = _rank_clothes_by_caption(descriptions, top_k=10, fb_text=fb_text)
 
     # -------------------------
     # Response
