@@ -18,7 +18,7 @@ def main():
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    matcher = PEClipMatcher(device=device)
+    matcher = PEClipMatcher(device=device, load_faiss=False)
 
     image_paths = sorted(
         p for p in clothes_dir.iterdir()

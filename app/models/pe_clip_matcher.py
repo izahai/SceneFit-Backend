@@ -26,6 +26,7 @@ class PEClipMatcher:
         device: str | None = None,
         autocast: bool = True,
         faiss_dir: str | None = FAISS_DIR,
+        load_faiss: bool = True,
     ):
         # -------------------------
         # Device / autocast
@@ -60,7 +61,7 @@ class PEClipMatcher:
         self.faiss_index = None
         self.faiss_meta = None
 
-        if faiss_dir is not None:
+        if load_faiss and faiss_dir is not None:
             self._load_faiss(faiss_dir)
 
     # -------------------------------------------------
