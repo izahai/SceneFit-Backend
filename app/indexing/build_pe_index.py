@@ -7,7 +7,7 @@ import numpy as np
 from pathlib import Path
 from PIL import Image
 
-from pe_clip_matcher import PEClipMatcher
+from app.models.pe_clip_matcher import PEClipMatcher
 
 
 @torch.no_grad()
