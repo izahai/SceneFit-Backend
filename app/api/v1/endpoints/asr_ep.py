@@ -6,8 +6,8 @@ from app.services.model_registry import ModelRegistry
 
 router = APIRouter()
 
-FB_DIR = Path("app/uploads/feedback")
-FB_DIR.mkdir(parents=True, exist_ok=True)
+TMP_DIR = Path("tmp/feedback")
+TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 def transcribe_audio(tmp_path: str):
     asr_model = ModelRegistry.get("asr")
@@ -23,7 +23,7 @@ def asr_relevance_feedback(
             status_code=400,
             detail="Invalid file type. Audio required."
         )
-    tmp_path = FB_DIR / f"{uuid.uuid4()}_{audio.filename}"
+    tmp_path = TMP_DIR / f"{uuid.uuid4()}_{audio.filename}"
     try:
         with tmp_path.open("wb") as f:
             f.write(audio.file.read())
