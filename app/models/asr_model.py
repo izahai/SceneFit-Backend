@@ -2,7 +2,9 @@ import unsloth
 from unsloth import FastModel
 from transformers import WhisperForConditionalGeneration, pipeline
 import torch
-from app.utils.device import resolve_device, resolve_dtype, resolve_autocast
+from app.utils.device import resolve_device
+import numpy as np
+
 
 class ASRModel():
     def __init__(self, device: str | None = None):
@@ -26,8 +28,15 @@ class ASRModel():
             return_language=True,
             torch_dtype=torch.float16  # Remove the device parameter
         )
-    def transcribe(self, audio_file: str) -> str:
+    def transcribe(self, waveform: np.ndarray) -> str:
+        """
+        waveform:
+          - mono
+          - 16 kHz
+          - float32
+          - range [-1.0, 1.0]
+        """
         with torch.no_grad():
-            result = self.pipeline(audio_file)
+            result = self.pipeline(waveform)
         text = result.get("text", "")
         return text
