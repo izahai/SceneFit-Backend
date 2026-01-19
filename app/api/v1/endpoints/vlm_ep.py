@@ -10,9 +10,12 @@ import time
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
 from app.services.clothes_captions import generate_clothes_captions_json
+from app.services.img_processor import paste_centered
 
 router = APIRouter()
 
+COMPOSED_DIR = Path("app/uploads/composed")
+COMPOSED_DIR.mkdir(parents=True, exist_ok=True)
 BG_DIR = Path("app/uploads/bg")
 CLOTHES_DIR = Path("app/data/2d")
 CLOTHES_CAPTION = Path("app/data/clothes_captions.json")
@@ -75,7 +78,7 @@ def _rank_clothes_by_image(descriptions: list[str], top_k: int = 10):
     )
 
 def _rank_clothes_by_caption(descriptions: list[str],
-                            matcher_name: str = "text_matcher",
+                            matcher_name: str = "pe_clip_matcher",
                             top_k: int = 10):
     clothes_captions = _get_clothes_captions()
     matcher = ModelRegistry.get(matcher_name)
@@ -86,17 +89,28 @@ def _rank_clothes_by_caption(descriptions: list[str],
     )
 
 def _rank_clothes_by_feedback(descriptions: list[str],
+                            topk_captions: list[str],
                             matcher_name: str = "text_matcher",
                             top_k: int = 10,
                             fb_text: str | None = None):
     clothes_captions = _get_clothes_captions()
     matcher = ModelRegistry.get(matcher_name)
-    return matcher.get_clothes_feedback(
+    return matcher.get_clothes_feedback_rocchio(
         descriptions=descriptions,
         clothes_captions=clothes_captions,
+        topk_captions=topk_captions,
         fb_text=fb_text,
         top_k=top_k,
     )
+
+def _get_top_k_captions(results: dict):
+    clothes_captions = _get_clothes_captions()
+    topk_captions = []
+    for item in results:
+        stem = item.get("name_clothes")
+        topk_captions.append(clothes_captions.get(f"{stem}.png"))
+    return topk_captions
+
 
 @router.post("/vlm-generated-clothes-captions")
 def get_vlm_descriptions(
@@ -139,15 +153,17 @@ def get_clothes_by_image_match(image: UploadFile = File(...)):
         "results": results,
     }
 
+
 @router.post("/vlm-clip-caption-matching")
 def get_clothes_by_image_match_captions(image: UploadFile = File(...)):
     """
     1. Upload image
     2. VLM generates clothing descriptions
     3. Matcher ranks clothes by similarity using captions JSON
+    4. Compose and save image for top-1 result
     """
 
-    # -------------------------
+    # ------------------------- 
     # Save uploaded image
     # -------------------------
     bg_path = _save_bg_upload(image)
@@ -164,11 +180,26 @@ def get_clothes_by_image_match_captions(image: UploadFile = File(...)):
     results = _rank_clothes_by_caption(descriptions, top_k=10)
 
     # -------------------------
+    # Compose and save image for top-1 result
+    # -------------------------
+    composed_path = None
+    if results and len(results) > 0:
+        top1 = results[0]
+        clothes_name = top1.get("name_clothes")
+        fg_path = CLOTHES_DIR / f"{clothes_name}.png"
+        if fg_path.exists():
+            composed_filename = f"composed_{clothes_name}_{int(time.time())}.png"
+            composed_path = COMPOSED_DIR / composed_filename
+            paste_centered(str(fg_path), str(bg_path), str(composed_path), scale=1.0)
+            composed_path = str(composed_path)
+
+    # -------------------------
     # Response
     # -------------------------
     return {
         "query": descriptions,
         "results": results,
+        "composed_image": composed_path,
     }
     
 @router.get("/clothes-captions")
@@ -277,15 +308,16 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
         },
     }
 
-@router.post("/vlm-caption-feedback")
+@router.post("/vlm-feedback")
 def get_clothes_by_feedback(payload: dict = Body(...)):
-
-    descriptions = payload["descriptions"]
+    descriptions = payload.get("query")
     fb_text = payload.get("fb_text")
-
+    initial_results = payload.get("results")
+    topk_captions = _get_top_k_captions(initial_results)
     results = _rank_clothes_by_feedback(
         descriptions=descriptions,
         top_k=10,
+        topk_captions=topk_captions,
         fb_text=fb_text,
     )
 
