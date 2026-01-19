@@ -6,7 +6,7 @@ from app.services.model_registry import ModelRegistry
 
 router = APIRouter()
 
-FB_DIR = Path("/feedback")
+FB_DIR = Path("app/uploads/feedback")
 FB_DIR.mkdir(parents=True, exist_ok=True)
 
 def transcribe_audio(tmp_path: str):
