@@ -3,7 +3,7 @@
 import json
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, Body
 from PIL import Image
 import time
 
@@ -76,6 +76,17 @@ def _rank_clothes_by_image(descriptions: list[str], top_k: int = 10):
 
 def _rank_clothes_by_caption(descriptions: list[str],
                             matcher_name: str = "text_matcher",
+                            top_k: int = 10):
+    clothes_captions = _get_clothes_captions()
+    matcher = ModelRegistry.get(matcher_name)
+    return matcher.match_clothes_captions(
+        descriptions=descriptions,
+        clothes_captions=clothes_captions,
+        top_k=top_k,
+    )
+
+def _rank_clothes_by_feedback(descriptions: list[str],
+                            matcher_name: str = "text_matcher",
                             top_k: int = 10,
                             fb_text: str | None = None):
     clothes_captions = _get_clothes_captions()
@@ -129,13 +140,11 @@ def get_clothes_by_image_match(image: UploadFile = File(...)):
     }
 
 @router.post("/vlm-clip-caption-matching")
-def get_clothes_by_image_match_captions(image: UploadFile = File(...),
-                                        fb_text: str | None = Form(None)):
+def get_clothes_by_image_match_captions(image: UploadFile = File(...)):
     """
     1. Upload image
     2. VLM generates clothing descriptions
     3. Matcher ranks clothes by similarity using captions JSON
-    4. (Optional) Refine with feedback string 
     """
 
     # -------------------------
@@ -152,7 +161,7 @@ def get_clothes_by_image_match_captions(image: UploadFile = File(...),
     # -------------------------
     # Load clothes captions + match
     # -------------------------
-    results = _rank_clothes_by_caption(descriptions, top_k=10, fb_text=fb_text)
+    results = _rank_clothes_by_caption(descriptions, top_k=10)
 
     # -------------------------
     # Response
@@ -266,4 +275,22 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
             "query": [],
             "result": res3
         },
+    }
+
+@router.post("/vlm-caption-feedback")
+def get_clothes_by_feedback(payload: dict = Body(...)):
+
+    descriptions = payload["descriptions"]
+    fb_text = payload.get("fb_text")
+
+    results = _rank_clothes_by_feedback(
+        descriptions=descriptions,
+        top_k=10,
+        fb_text=fb_text,
+    )
+
+    return {
+        "query": descriptions,
+        "feedback": fb_text,
+        "results": results,
     }
