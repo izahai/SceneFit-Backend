@@ -13,8 +13,8 @@ from app.models.pe_clip_matcher import PEClipMatcher
 @torch.no_grad()
 def main():
     device = "cuda"
-    clothes_dir = Path("data/2d")
-    output_dir = Path("data/faiss")
+    clothes_dir = Path("app/data/2d")
+    output_dir = Path("app/data/faiss")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
