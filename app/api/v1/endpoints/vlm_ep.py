@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, UploadFile, File
 from PIL import Image
 import time
+import torch
 
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
@@ -82,6 +83,27 @@ def _rank_clothes_by_caption(descriptions: list[str], top_k: int = 10):
         clothes_captions=clothes_captions,
         top_k=top_k,
     )
+
+def _build_query_embedding(
+    color_outfits: list[str],
+    scene_caption: str,
+    bg_image_emb: torch.Tensor,
+    matcher,
+    weights=(0.45, 0.45, 0.10),
+):
+    w_color, w_scene, w_img = weights
+
+    color_emb = matcher.encode_text(color_outfits).mean(dim=0, keepdim=True)
+    scene_emb = matcher.encode_text([scene_caption])
+
+    query = (
+        w_color * color_emb +
+        w_scene * scene_emb +
+        w_img * bg_image_emb
+    )
+
+    return F.normalize(query, dim=-1)
+
 
 @router.post("/vlm-generated-clothes-captions")
 def get_vlm_descriptions(
@@ -261,3 +283,39 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
             "result": res3
         },
     }
+
+@router.post("/vlm-faiss-composed-retrieval")
+def composed_retrieval(image: UploadFile = File(...)):
+    bg_path = _save_bg_upload(image)
+
+    vlm = ModelRegistry.get("vlm")
+    matcher = ModelRegistry.get("pe_clip_matcher")
+
+    signals = vlm.extract_query_signals(str(bg_path))
+
+    bg_img = Image.open(bg_path).convert("RGB")
+    bg_emb = matcher.encode_image([bg_img])  # (1, D)
+
+    query_emb = _build_query_embedding(
+        signals["color_outfits"],
+        signals["scene_caption"],
+        bg_emb,
+        matcher,
+    )
+
+    candidates = matcher.match_clothes(
+        query_emb=query_emb,
+        top_k=50,
+    )
+
+    reranked = vlm.choose_best_clothes(
+        signals["scene_caption"],
+        [(c["name"], c["caption"]) for c in candidates[:10]],
+    )
+
+    return {
+        "scene_caption": signals["scene_caption"],
+        "results": candidates,
+        "reranked_best": reranked,
+    }
+

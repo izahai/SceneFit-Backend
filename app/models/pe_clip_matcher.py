@@ -1,5 +1,5 @@
-# app/models/pe_clip_matcher.py
-
+import faiss
+import pickle
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -8,24 +8,24 @@ from pathlib import Path
 
 import app.services.pe_core.vision_encoder.pe as pe
 import app.services.pe_core.vision_encoder.transforms as transforms
-
 from app.utils.device import resolve_device, resolve_autocast, resolve_dtype
 
-
+FAISS_DIR = Path("app/data/faiss")
 class PEClipMatcher:
     """
-    Standalone PE-CLIP matcher:
-    - Loads PE CLIP internally
-    - Encodes AI-generated text
-    - Encodes clothing images
-    - Ranks clothes by cosine similarity
+    PE-CLIP matcher supporting:
+    - Brute-force matching (original baselines)
+    - FAISS-based retrieval (new method)
     """
+
+    TEXT_PROMPT = "a clothing outfit described as: {}"
 
     def __init__(
         self,
         config_name: str = "PE-Core-B16-224",
         device: str | None = None,
         autocast: bool = True,
+        faiss_dir: str | None = FAISS_DIR,
     ):
         # -------------------------
         # Device / autocast
@@ -54,11 +54,37 @@ class PEClipMatcher:
             self.model.context_length
         )
 
+        # -------------------------
+        # Optional FAISS
+        # -------------------------
+        self.faiss_index = None
+        self.faiss_meta = None
+
+        if faiss_dir is not None:
+            self._load_faiss(faiss_dir)
+
+    # -------------------------------------------------
+    # FAISS loading
+    # -------------------------------------------------
+    def _load_faiss(self, faiss_dir: str):
+        faiss_dir = Path(faiss_dir)
+
+        self.faiss_index = faiss.read_index(
+            str(faiss_dir / "clothes_image.index")
+        )
+
+        with open(faiss_dir / "clothes_image_meta.pkl", "rb") as f:
+            self.faiss_meta = pickle.load(f)
+
     # -------------------------------------------------
     # Text encoding
     # -------------------------------------------------
     @torch.no_grad()
     def encode_text(self, texts: List[str]) -> torch.Tensor:
+        if isinstance(texts, str):
+            texts = [texts]
+
+        texts = [self.TEXT_PROMPT.format(t) for t in texts]
         tokens = self.text_tokenizer(texts).to(self.device)
 
         with torch.autocast(
@@ -66,15 +92,12 @@ class PEClipMatcher:
             dtype=self.autocast_dtype,
             enabled=self.use_autocast,
         ):
-            _, text_features, _ = self.model(
-                image=None,
-                text=tokens,
-            )
+            _, text_features, _ = self.model(image=None, text=tokens)
 
         return F.normalize(text_features, dim=-1)
 
     # -------------------------------------------------
-    # Image encoding
+    # Image encoding (still useful!)
     # -------------------------------------------------
     @torch.no_grad()
     def encode_image(self, images: List[Image.Image]) -> torch.Tensor:
@@ -87,117 +110,100 @@ class PEClipMatcher:
             dtype=self.autocast_dtype,
             enabled=self.use_autocast,
         ):
-            image_features, _, _ = self.model(
-                image=image_tensor,
-                text=None,
-            )
+            image_features, _, _ = self.model(image=image_tensor, text=None)
 
         return F.normalize(image_features, dim=-1)
 
     # -------------------------------------------------
-    # Matching
+    # Shared query embedding (NEW, key fix)
+    # -------------------------------------------------
+    def _build_query_embedding(self, descriptions: List[str]) -> torch.Tensor:
+        """
+        Aggregate 10 outfit descriptions into ONE query vector.
+        """
+        text_embs = self.encode_text(descriptions)
+        return text_embs.mean(dim=0, keepdim=True)
+
+    # -------------------------------------------------
+    # MATCH BY IMAGE (Baseline 1 / FAISS version)
     # -------------------------------------------------
     @torch.no_grad()
     def match_clothes(
         self,
-        descriptions: list[str],
-        clothes: list[tuple[str, Image.Image]],
+        query_emb: torch.Tensor,
+        clothes: List[Tuple[str, Image.Image]] | None = None,
         top_k: int | None = None,
     ):
         """
-        descriptions: list of AI-generated text strings
-        clothes: [(name, PIL.Image)]
+        If FAISS is loaded:
+            uses FAISS (new method)
+        Else:
+            falls back to brute-force (original baseline)
         """
 
-        # -------------------------
-        # Encode text (per string)
-        # -------------------------
-        text_embs = self.encode_text(descriptions)      # (N_text, D)
-        text_embs = F.normalize(text_embs, dim=-1)
+        #query_emb = self._build_query_embedding(descriptions)
 
-        # -------------------------
-        # Encode images
-        # -------------------------
+        # ---------- FAISS PATH ----------
+        if self.faiss_index is not None:
+            query_np = query_emb.cpu().numpy().astype("float32")
+            scores, indices = self.faiss_index.search(
+                query_np, top_k or 50
+            )
+
+            results = [
+                {
+                    "name_clothes": self.faiss_meta["filenames"][idx],
+                    "similarity": float(score),
+                }
+                for score, idx in zip(scores[0], indices[0])
+            ]
+
+            return results[:top_k] if top_k else results
+
+        # ---------- BRUTE-FORCE PATH (original) ----------
+        assert clothes is not None, "Clothes images required for brute-force."
+
         names, images = zip(*clothes)
-        image_embs = self.encode_image(list(images))    # (N_img, D)
-        image_embs = F.normalize(image_embs, dim=-1)
+        image_embs = self.encode_image(list(images))
 
-        # -------------------------
-        # Similarity: image ↔ all texts
-        # -------------------------
-        # (N_img, D) @ (D, N_text) → (N_img, N_text)
-        sim_matrix = image_embs @ text_embs.T
-
-        # For each image, take the best matching description
-        best_scores, best_text_idx = sim_matrix.max(dim=1)
+        sims = (image_embs @ query_emb.T).squeeze(1)
 
         results = [
             {
                 "name_clothes": names[i],
-                "similarity": float(best_scores[i]),
-                "best_description": descriptions[best_text_idx[i]],
+                "similarity": float(sims[i]),
             }
             for i in range(len(names))
         ]
 
         results.sort(key=lambda x: x["similarity"], reverse=True)
+        return results[:top_k] if top_k else results
 
-        if top_k is not None:
-            results = results[:top_k]
-
-        return results
-
+    # -------------------------------------------------
+    # MATCH BY CAPTION (Baseline 2, unchanged semantics)
+    # -------------------------------------------------
     @torch.no_grad()
     def match_clothes_captions(
         self,
-        descriptions: list[str],
+        descriptions: List[str],
         clothes_captions: dict[str, str],
         top_k: int | None = None,
     ):
-        """
-        descriptions: list of AI-generated text strings
-        clothes_captions: {image_name: caption}
-        """
-
-        if not clothes_captions:
-            return []
+        query_emb = self._build_query_embedding(descriptions)
 
         names = list(clothes_captions.keys())
-        captions = [clothes_captions[name] for name in names]
+        captions = list(clothes_captions.values())
 
-        # -------------------------
-        # Encode text (per string)
-        # -------------------------
-        query_embs = self.encode_text(descriptions)     # (N_text, D)
-        query_embs = F.normalize(query_embs, dim=-1)
-
-        # -------------------------
-        # Encode clothes captions
-        # -------------------------
-        caption_embs = self.encode_text(captions)       # (N_img, D)
-        caption_embs = F.normalize(caption_embs, dim=-1)
-
-        # -------------------------
-        # Similarity: caption ↔ all descriptions
-        # -------------------------
-        # (N_caption, D) @ (D, N_text) → (N_caption, N_text)
-        sim_matrix = caption_embs @ query_embs.T
-
-        # For each caption, take the best matching description
-        best_scores, best_text_idx = sim_matrix.max(dim=1)
+        caption_embs = self.encode_text(captions)
+        sims = (caption_embs @ query_emb.T).squeeze(1)
 
         results = [
             {
                 "name_clothes": Path(names[i]).stem,
-                "similarity": float(best_scores[i]),
-                "best_description": descriptions[best_text_idx[i]],
+                "similarity": float(sims[i]),
             }
             for i in range(len(names))
         ]
 
         results.sort(key=lambda x: x["similarity"], reverse=True)
-
-        if top_k is not None:
-            results = results[:top_k]
-
-        return results
+        return results[:top_k] if top_k else results

@@ -172,3 +172,23 @@ class VLModel:
                 return name
 
         return candidates[0][0]
+    
+    def extract_query_signals(self, image_path: str) -> dict:
+        """
+        Extract all signals needed for retrieval, using existing prompts.
+        """
+        image = Image.open(image_path).convert("RGB")
+        image = self.resize_image(image)
+
+        # Color harmony (Baseline 1/2)
+        color_outfits = self.generate_clothing_from_image(image_path)
+
+        # Semantic scene understanding (Baseline 3)
+        scene_caption = self.generate_clothes_caption(
+            image_path, self.bg_caption
+        )
+
+        return {
+            "color_outfits": color_outfits,
+            "scene_caption": scene_caption,
+        }

@@ -1,23 +1,56 @@
-import os
-import faiss, json
+# build_peclip_faiss.py
+
+import faiss
+import torch
+import pickle
 import numpy as np
 from pathlib import Path
 from PIL import Image
-from app.models.negative_generator import NegativePEModel
 
-pe = NegativePEModel()
-paths = list(Path("app/data/2d").glob("*.png"))
+from pe_clip_matcher import PEClipMatcher
 
-imgs = [Image.open(p) for p in paths]
-embs = pe.encode_image(imgs).cpu().numpy().astype("float32")
 
-index = faiss.IndexFlatIP(embs.shape[1])
-index.add(embs)
+@torch.no_grad()
+def main():
+    device = "cuda"
+    clothes_dir = Path("data/2d")
+    output_dir = Path("data/faiss")
 
-os.makedirs("app/data/faiss", exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-faiss.write_index(index, "app/data/faiss/pe.index")
-json.dump(
-    [{"id": p.stem, "file": str(p)} for p in paths],
-    open("app/data/faiss/pe_meta.json", "w"),
-)
+    matcher = PEClipMatcher(device=device)
+
+    image_paths = sorted(
+        p for p in clothes_dir.iterdir()
+        if p.suffix.lower() in {".png", ".jpg", ".jpeg"}
+    )
+
+    assert len(image_paths) > 0, "No clothing images found."
+
+    # -------- SINGLE PASS IMAGE ENCODING --------
+    images = [Image.open(p).convert("RGB") for p in image_paths]
+    image_embs = matcher.encode_image(images)  # (N, D)
+
+    image_embs = image_embs.cpu().numpy().astype("float32")
+    dim = image_embs.shape[1]
+
+    # -------- FAISS INDEX --------
+    index = faiss.IndexFlatIP(dim)  # cosine similarity
+    index.add(image_embs)
+
+    faiss.write_index(index, str(output_dir / "clothes_image.index"))
+
+    # -------- METADATA --------
+    with open(output_dir / "clothes_image_meta.pkl", "wb") as f:
+        pickle.dump(
+            {
+                "filenames": [p.name for p in image_paths]
+            },
+            f,
+        )
+
+    print(f"[OK] Indexed {len(image_paths)} clothing images.")
+
+
+if __name__ == "__main__":
+    main()
