@@ -3,7 +3,7 @@
 import json
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Form, Body
+from fastapi import APIRouter, UploadFile, File, Body
 from PIL import Image
 import time
 
