@@ -75,7 +75,7 @@ def _rank_clothes_by_image(descriptions: list[str], top_k: int = 10):
     )
 
 def _rank_clothes_by_caption(descriptions: list[str],
-                            matcher_name: str = "pe_clip_matcher",
+                            matcher_name: str = "text_matcher",
                             top_k: int = 10,
                             fb_text: str | None = None):
     clothes_captions = _get_clothes_captions()
