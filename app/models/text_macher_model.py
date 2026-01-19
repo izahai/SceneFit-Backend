@@ -183,12 +183,76 @@ class TextMatcherModel():
         return results
     
     @torch.no_grad()
+    def get_clothes_feedback_rocchio(
+        self,
+        descriptions: list[str],
+        clothes_captions: dict[str, str],
+        topk_captions: list[str],
+        fb_text: str,
+        top_k: int | None = None,
+        threshold: float = 0.3,     # relevance threshold
+        alpha: float = 1.0,
+        beta: float = 0.75,
+        gamma: float = 0.25,
+    ):
+        if not clothes_captions:
+            return []
+
+        # -------------------------
+        # Prepare data
+        # -------------------------
+        names = list(clothes_captions.keys())
+        captions = [clothes_captions[n] for n in names]
+
+        # -------------------------
+        # Reformulate queries (Rocchio)
+        # -------------------------
+        query_embs = self.get_reformulated_query(
+            descriptions=descriptions,
+            topk_captions=topk_captions,
+            fb_text=fb_text,
+            threshold=threshold,
+            alpha=alpha,
+            beta=beta,
+            gamma=gamma,
+        )
+        query_embs = F.normalize(query_embs, dim=-1)   # (N_desc, D)
+
+        # -------------------------
+        # Encode captions
+        # -------------------------
+        caption_embs = self.encode_normalized(captions)  # (N_cap, D)
+
+        # -------------------------
+        # Similarity & ranking
+        # -------------------------
+        sim_matrix = caption_embs @ query_embs.T
+        best_scores, best_text_idx = sim_matrix.max(dim=1)
+
+        results = [
+            {
+                "name_clothes": Path(names[i]).stem,
+                "similarity": float(best_scores[i]),
+                "best_description": descriptions[int(best_text_idx[i])],
+            }
+            for i in range(len(names))
+        ]
+
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+
+        if top_k is not None:
+            results = results[:top_k]
+
+        return results
+
+    
+    @torch.no_grad()
     def match_clothes_captions(
         self,
         descriptions: list[str],
         clothes_captions: dict[str, str],
-        fb_text: str | None = None,
-        beta: float = 0.2,
+        # fb_text: str | None = None,
+        # beta: float = 0.2,
         top_k: int | None = None,
     ):
         """
@@ -202,7 +266,7 @@ class TextMatcherModel():
         captions = [clothes_captions[name] for name in names]
         
         query_embs = self.encode_normalized(descriptions)
-        query_embs = self.apply_feedback(query_embs, fb_text, beta)
+        # query_embs = self.apply_feedback(query_embs, fb_text, beta)
 
         caption_embs = self.encode_normalized(captions)
 
