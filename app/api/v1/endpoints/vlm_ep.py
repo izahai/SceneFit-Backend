@@ -292,7 +292,7 @@ def composed_retrieval(image: UploadFile = File(...)):
 
     vlm = ModelRegistry.get("vlm")
     matcher = ModelRegistry.get("pe_clip_matcher")
-    reranker = ModelRegistry.get("qwen3_vl_reranker")
+    reranker = ModelRegistry.get("qwen_reranker")
 
     # -------------------------
     # Extract query signals

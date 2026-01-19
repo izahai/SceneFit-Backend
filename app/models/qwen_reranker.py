@@ -1,7 +1,7 @@
 from typing import List, Dict
 from PIL import Image
 
-from scripts.qwen3_vl_reranker import Qwen3VLReranker
+from app.models.scripts.qwen3_vl_reranker import Qwen3VLReranker
 
 
 class Qwen3VLRerankerWrapper:
