@@ -292,12 +292,22 @@ def composed_retrieval(image: UploadFile = File(...)):
 
     vlm = ModelRegistry.get("vlm")
     matcher = ModelRegistry.get("pe_clip_matcher")
+    reranker = ModelRegistry.get("qwen3_vl_reranker")
 
+    # -------------------------
+    # Extract query signals
+    # -------------------------
     signals = vlm.extract_query_signals(str(bg_path))
 
+    # -------------------------
+    # Background image embedding
+    # -------------------------
     bg_img = Image.open(bg_path).convert("RGB")
     bg_emb = matcher.encode_image([bg_img])  # (1, D)
 
+    # -------------------------
+    # Build fused query
+    # -------------------------
     query_emb = _build_query_embedding(
         signals["color_outfits"],
         signals["scene_caption"],
@@ -305,19 +315,33 @@ def composed_retrieval(image: UploadFile = File(...)):
         matcher,
     )
 
+    # -------------------------
+    # FAISS retrieval (coarse)
+    # -------------------------
     candidates = matcher.match_clothes(
         query_emb=query_emb,
-        top_k=50,
+        top_k=10,
     )
 
-    reranked = vlm.choose_best_clothes(
-        signals["scene_caption"],
-        [(c["name"], c["caption"]) for c in candidates[:10]],
+    # Attach captions + images for reranker
+    for c in candidates:
+        c["image"] = Image.open(
+            Path("app/data/2d") / f"{c['name_clothes']}.png"
+        ).convert("RGB")
+        #c["caption"] = c.get("caption", "")
+
+    # -------------------------
+    # Qwen3-VL reranking (fine)
+    # -------------------------
+    reranked = reranker.rerank(
+        query_text=signals["scene_caption"],
+        candidates=candidates,
     )
 
     return {
         "scene_caption": signals["scene_caption"],
-        "results": candidates,
-        "reranked_best": reranked,
+        "results": reranked,
+        "best": reranked[0] if reranked else None,
     }
+
 
