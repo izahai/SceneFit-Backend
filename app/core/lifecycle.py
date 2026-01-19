@@ -5,10 +5,7 @@ from contextlib import asynccontextmanager
 import torch
 
 from app.services.model_registry import ModelRegistry
-from app.models.mmemb_model import MmEmbModel
-from app.models.pe_clip_model import PEClipModel
-from app.models.vl_model import VLModel
-from app.models.pe_clip_matcher import PEClipMatcher
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,13 +28,13 @@ async def lifespan(app: FastAPI):
     
     # ---------- Qwen3 ----------
     # print("[START] Loading Qwen3 ...")
-    #ModelRegistry.get("vlm")
+    ModelRegistry.get("vlm")
     
     #  ---------- PE Matcher ----------
     # print("[START] Loading PE Matcher ...")
     #ModelRegistry.get("pe_clip_matcher")
-    ModelRegistry.get("negative_pe")
-    ModelRegistry.get("qwen_pe")
+    #ModelRegistry.get("negative_pe")
+    #ModelRegistry.get("qwen_pe")
     # ---------- Diffusion ----------
     print("[START] Loading Diffusion ...")
     # ModelRegistry.get("diffusion")
