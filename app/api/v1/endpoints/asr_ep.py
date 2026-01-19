@@ -49,5 +49,4 @@ def asr_relevance_feedback(
 
     return {
         "transcript": transcript,
-        "signal_type": "voice_feedback",
     }
