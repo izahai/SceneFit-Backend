@@ -9,7 +9,6 @@ class TextMatcherModel():
     def __init__(self, device: str | None = None, config_name='Qwen/Qwen3-Embedding-0.6B'):
         self.device = resolve_device(device)
         self.dtype = resolve_dtype(self.device)
-        self.autocast = resolve_autocast(self.device)
 
         self.tokenizer = AutoTokenizer.from_pretrained(config_name, padding_side="left")
         self.model = AutoModel.from_pretrained(
@@ -53,11 +52,10 @@ class TextMatcherModel():
                 return_tensors="pt",
             ).to(self.device)
 
-            with self.autocast:
-                outputs = self.model(**batch)
-                embeddings = self.last_token_pool(
-                    outputs.last_hidden_state, batch["attention_mask"]
-                )
+            outputs = self.model(**batch)
+            embeddings = self.last_token_pool(
+                outputs.last_hidden_state, batch["attention_mask"]
+            )
 
             if normalize:
                 embeddings = F.normalize(embeddings, p=2, dim=1)
