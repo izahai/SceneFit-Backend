@@ -21,6 +21,20 @@ class ModelRegistry:
         if name not in cls._models:
             cls._models[name] = cls._load(name)
         return cls._models[name]
+    
+    @classmethod
+    def release(cls, name: str):
+        model = cls._models.get(name)
+        if model is None:
+            return
+
+        if hasattr(model, "release"):
+            model.release()
+        elif hasattr(model, "model"):
+            model.model.to("cpu")
+
+        del cls._models[name]
+
 
     @staticmethod
     def _load(name: str):

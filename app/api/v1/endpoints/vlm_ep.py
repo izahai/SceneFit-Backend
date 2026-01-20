@@ -298,9 +298,7 @@ def composed_retrieval(image: UploadFile = File(...)):
     # -------------------------
     signals = vlm.extract_query_signals(str(bg_path))
     print("Got 0")
-    del vlm
-    gc.collect()
-    torch.cuda.empty_cache()
+    ModelRegistry.release("vlm")
     print("Got 1")
     matcher = ModelRegistry.get("pe_clip_matcher")
     print("Got 2")
@@ -320,7 +318,7 @@ def composed_retrieval(image: UploadFile = File(...)):
         matcher,
     )
     
-
+    print("Got 3")
 
     # -------------------------
     # FAISS retrieval (coarse)
@@ -329,10 +327,10 @@ def composed_retrieval(image: UploadFile = File(...)):
         query_emb=query_emb,
         top_k=10,
     )
-    del matcher
-    gc.collect()
-    torch.cuda.empty_cache()
+    ModelRegistry.release("pe_clip_matcher")
+    print("Got 4")
     reranker = ModelRegistry.get("qwen_reranker")
+    print("Got 5")
     # Attach captions + images for reranker
     for c in candidates:
         c["image"] = Image.open(
@@ -347,7 +345,7 @@ def composed_retrieval(image: UploadFile = File(...)):
         query_text=signals["scene_caption"],
         candidates=candidates,
     )
-
+    
     return {
         "scene_caption": signals["scene_caption"],
         "results": reranked,

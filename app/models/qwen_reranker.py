@@ -18,7 +18,9 @@ class Qwen3VLRerankerWrapper:
             model_name_or_path=model_name_or_path,
             **kwargs,
         )
-
+    def release(self):
+        self.model.to("cpu")
+        del self.model
     def rerank(
         self,
         query_text: str,

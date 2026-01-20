@@ -39,6 +39,10 @@ class VLModel:
         if hasattr(self, "model") and self.model is not None:
             self.model.to(device)
         return self
+
+    def release(self):
+        self.model.to("cpu")
+        del self.model
     @torch.no_grad()
     def _generate(self, messages: list[dict]) -> str:
         inputs = self.processor.apply_chat_template(

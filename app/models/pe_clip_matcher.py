@@ -71,6 +71,9 @@ class PEClipMatcher:
         if hasattr(self, "model") and self.model is not None:
             self.model.to(device)
         return self
+    def release(self):
+        self.model.to("cpu")
+        del self.model
     def _load_faiss(self, faiss_dir: str):
         faiss_dir = Path(faiss_dir)
 
