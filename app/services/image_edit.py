@@ -31,6 +31,8 @@ def save_to_file(result, save_result):
     with open(filepath, 'wb') as f:
         f.write(image_data)
 
+    return filepath
+
 
 def format_prompt(scene_description):
     prompt = (
@@ -112,8 +114,8 @@ def edit_image_scene_img(scene_path, save_result=True):
         raise RuntimeError(f"API Error: {result['error']}")
 
     result["prompt"] = prompt
-    save_to_file(result=result, save_result=save_result)
-    return result
+    edited_path = save_to_file(result=result, save_result=save_result)
+    return {"result": result, "edited_path": edited_path}
 
 def main():
     # For testing

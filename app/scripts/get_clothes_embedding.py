@@ -9,7 +9,7 @@ db = VectorDatabase(
     embedding_model="pe",
     use_gpu=True,          # or False if you prefer CPU
     data_dir="app/data/2d",
-    auto_prepare=False,    # we’ll build explicitly
+    auto_prepare=False,    # we'll build explicitly
 )
 
 db.ingest_folder("app/data/2d", recursive=True, max_images=None)
