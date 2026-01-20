@@ -8,7 +8,7 @@ from PIL import Image
 import time
 import torch
 import torch.nn.functional as F
-
+import gc
 
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
@@ -297,10 +297,13 @@ def composed_retrieval(image: UploadFile = File(...)):
     # Extract query signals
     # -------------------------
     signals = vlm.extract_query_signals(str(bg_path))
-    vlm.to("cpu")
+    print("Got 0")
+    del vlm
+    gc.collect()
     torch.cuda.empty_cache()
-
+    print("Got 1")
     matcher = ModelRegistry.get("pe_clip_matcher")
+    print("Got 2")
     # -------------------------
     # Background image embedding
     # -------------------------
@@ -326,7 +329,8 @@ def composed_retrieval(image: UploadFile = File(...)):
         query_emb=query_emb,
         top_k=10,
     )
-    matcher.to("cpu")
+    del matcher
+    gc.collect()
     torch.cuda.empty_cache()
     reranker = ModelRegistry.get("qwen_reranker")
     # Attach captions + images for reranker
