@@ -334,7 +334,7 @@ def composed_retrieval(image: UploadFile = File(...)):
     # Attach captions + images for reranker
     for c in candidates:
         c["image"] = Image.open(
-            Path("app/data/2d") / f"{c['name_clothes']}.png"
+            Path("app/data/2d") / f"{c['name_clothes']}"
         ).convert("RGB")
         #c["caption"] = c.get("caption", "")
 
