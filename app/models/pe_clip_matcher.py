@@ -138,8 +138,8 @@ class PEClipMatcher:
     @torch.no_grad()
     def match_clothes(
         self,
-        descriptions: List[str],
-        query_emb: torch.Tensor,
+        descriptions: List[str] | None = None,
+        query_emb: torch.Tensor = None,
         clothes: List[Tuple[str, Image.Image]] | None = None,
         top_k: int | None = None,
     ):
