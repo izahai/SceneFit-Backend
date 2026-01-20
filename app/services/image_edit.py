@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SAVE_DIR = Path('data/edited_image/')
-REF_IMAGE_PATH = Path('data/man.png')
+SAVE_DIR = Path('app/data/edited_image/')
+REF_IMAGE_PATH = Path('app/data/man.png')
 API_KEY = os.getenv("IMAGEROUTER_API_KEY")
 URL = "https://api.imagerouter.io/v1/openai/images/edits"
 HEADERS = {

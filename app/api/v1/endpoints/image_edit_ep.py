@@ -38,17 +38,20 @@ def retrieve_clothes_image_edit(
     # -------------------------------------------------
     # 2. Get GPT edited images
     # -------------------------------------------------
+    print("[image_edit_ep] Editing image via GPT...")
     edit_result = edit_image_scene_img(bg_path, save_result=False)
     edited_image_path = edit_result.get("edited_path", bg_path)
 
     # -------------------------------------------------
     # 3. Score using PE-Core model
     # -------------------------------------------------
+    print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
     scores = vector_db.search_by_image(edited_image_path, top_k=top_k)
 
     # -------------------------------------------------
     # 4. Top-K
     # -------------------------------------------------
+    print("[image_edit_ep] Returning results...")
     return {
         "edited_image_path": str(edited_image_path),
         "count": min(top_k, len(scores)),
