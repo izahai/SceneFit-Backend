@@ -153,34 +153,58 @@ class PEClipMatcher:
             query_emb = self._build_query_embedding(descriptions)
 
         # ---------- FAISS PATH ----------
+        k = top_k or 10
+
+    # ---------- FAISS PATH ----------
         if self.faiss_index is not None:
             query_np = query_emb.cpu().numpy().astype("float32")
-            scores, indices = self.faiss_index.search(
-                query_np, top_k or 50
+
+            # scores, indices: [N, k]
+            scores, indices = self.faiss_index.search(query_np, k)
+
+            # aggregate by max similarity per index
+            best_scores = {}
+
+            for qi in range(scores.shape[0]):
+                for score, idx in zip(scores[qi], indices[qi]):
+                    score = float(score)
+                    if idx not in best_scores or score > best_scores[idx]:
+                        best_scores[idx] = score
+
+            # sort by similarity
+            sorted_items = sorted(
+                best_scores.items(),
+                key=lambda x: x[1],
+                reverse=True
             )
 
             results = [
                 {
                     "name_clothes": self.faiss_meta["filenames"][idx],
-                    "similarity": float(score),
+                    "similarity": score,
                 }
-                for score, idx in zip(scores[0], indices[0])
+                for idx, score in sorted_items[:top_k]
             ]
 
-            return results[:top_k] if top_k else results
+            return results
 
-        # ---------- BRUTE-FORCE PATH (original) ----------
+        # ---------- BRUTE-FORCE PATH ----------
         assert clothes is not None, "Clothes images required for brute-force."
 
         names, images = zip(*clothes)
         image_embs = self.encode_image(list(images))
+        image_embs = F.normalize(image_embs, dim=-1)
 
-        sims = (image_embs @ query_emb.T).squeeze(1)
+        # sims: [M, N]
+        sims = image_embs @ query_emb.T
+
+        # MAX aggregation over queries → [M]
+        final_sims = sims.max(dim=1).values
 
         results = [
             {
                 "name_clothes": names[i],
-                "similarity": float(sims[i]),
+                "similarity": float(final_sims[i]),
             }
             for i in range(len(names))
         ]

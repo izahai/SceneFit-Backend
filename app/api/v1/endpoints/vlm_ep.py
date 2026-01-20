@@ -96,7 +96,7 @@ def _build_query_embedding(
 ):
     w_color, w_scene, w_img = weights
 
-    color_emb = matcher.encode_text(color_outfits).mean(dim=0, keepdim=True)
+    color_emb = matcher.encode_text(color_outfits)
     scene_emb = matcher.encode_text([scene_caption])
 
     query = (
