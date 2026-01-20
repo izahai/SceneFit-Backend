@@ -26,13 +26,21 @@ def render_glb_front_view(
     glb_path,
     output_image_path="render.png",
     image_size=(600, 1200),
-    camera_distance_factor=1.0
+    camera_distance_factor=1.0,
+    bg_color=(255, 255, 255, 255),  # 👈 NEW: background color
+    remove_bg=False                 # 👈 NEW: control background removal
 ):
     mesh = trimesh.load(glb_path)
 
     scene_trimesh = mesh if isinstance(mesh, trimesh.Scene) else trimesh.Scene(mesh)
 
-    render_scene = pyrender.Scene(bg_color=[255, 255, 255, 255])
+    # Normalize bg_color for pyrender (expects 0–1 floats)
+    bg_color_norm = [c / 255.0 for c in bg_color]
+
+    render_scene = pyrender.Scene(
+        bg_color=bg_color_norm,
+        ambient_light=[0.3, 0.3, 0.3]
+    )
 
     for geom in scene_trimesh.geometry.values():
         render_scene.add(pyrender.Mesh.from_trimesh(geom, smooth=True))
@@ -75,18 +83,24 @@ def render_glb_front_view(
     color, _ = renderer.render(render_scene)
     renderer.delete()
 
-    # Convert render to PNG bytes
     img = Image.fromarray(color).convert("RGBA")
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    buffer.seek(0)
 
-    # Remove background
-    output_bytes = remove(buffer.read())
+    if remove_bg:
+        # Remove background (returns transparent PNG)
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
 
-    # Save final image
-    with open(output_image_path, "wb") as f:
-        f.write(output_bytes)
+        output_bytes = remove(buffer.read())
 
-    print(f"Saved render (bg removed) to: {output_image_path}")
+        # Composite onto chosen background color
+        fg = Image.open(io.BytesIO(output_bytes)).convert("RGBA")
+        bg = Image.new("RGBA", fg.size, bg_color)
+        final_img = Image.alpha_composite(bg, fg)
+    else:
+        final_img = img
+
+    final_img.convert("RGB").save(output_image_path)
+
+    print(f"Saved render to: {output_image_path}")
 

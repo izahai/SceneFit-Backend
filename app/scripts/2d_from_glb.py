@@ -5,7 +5,7 @@ from tqdm import tqdm
 def main(
     input_folder,
     output_folder,
-    image_size=(600, 1200),
+    image_size=(512, 512),
     camera_distance_factor=1.0
 ):
     os.makedirs(output_folder, exist_ok=True)
