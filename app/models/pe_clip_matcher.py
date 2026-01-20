@@ -138,6 +138,7 @@ class PEClipMatcher:
     @torch.no_grad()
     def match_clothes(
         self,
+        descriptions: List[str],
         query_emb: torch.Tensor,
         clothes: List[Tuple[str, Image.Image]] | None = None,
         top_k: int | None = None,
@@ -148,8 +149,8 @@ class PEClipMatcher:
         Else:
             falls back to brute-force (original baseline)
         """
-
-        #query_emb = self._build_query_embedding(descriptions)
+        if query_emb is None:
+            query_emb = self._build_query_embedding(descriptions)
 
         # ---------- FAISS PATH ----------
         if self.faiss_index is not None:

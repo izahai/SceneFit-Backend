@@ -73,6 +73,7 @@ def _rank_clothes_by_image(descriptions: list[str], top_k: int = 10):
     matcher = ModelRegistry.get("pe_clip_matcher")
     return matcher.match_clothes(
         descriptions=descriptions,
+        query_emb=None,
         clothes=clothes,
         top_k=top_k,
     )
