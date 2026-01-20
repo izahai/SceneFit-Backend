@@ -345,6 +345,9 @@ def composed_retrieval(image: UploadFile = File(...)):
         query_text=signals["scene_caption"],
         candidates=candidates,
     )
+    # REMOVE non-serializable fields
+    for c in reranked:
+        c.pop("image", None)
     
     return {
         "scene_caption": signals["scene_caption"],
