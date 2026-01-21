@@ -11,7 +11,7 @@ router = APIRouter()
 
 BG_DIR = Path("app/uploads/bg")
 BG_DIR.mkdir(parents=True, exist_ok=True)
-
+ALL_BG_DIR = Path("app/data/bg")
 
 def get_vector_db(request: Request):
     return request.app.state.vector_db
@@ -64,3 +64,45 @@ def retrieve_clothes_image_edit(
             for s in scores[:top_k]
         ],
     }
+
+@router.post("/image_edit/retrieve_all")
+def retrieve_all_backgrounds(
+    top_k: int = Form(5),
+    vector_db = Depends(get_vector_db),
+):
+    results = []
+    for bg_file in ALL_BG_DIR.glob("*"):
+        
+        # ------------------------------
+        # 1. Edit image via GPT
+        # ------------------------------
+
+        print(f"[image_edit_ep] Editing image via GPT for background: {bg_file}...")
+        edit_result = edit_image_scene_img(bg_file, save_result=False)
+        edited_image_path = edit_result.get("edited_path", bg_file)
+
+        # ------------------------------
+        # 2. Score using PE-Core model
+        # ------------------------------
+
+        print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
+        scores = vector_db.search_by_image(edited_image_path, top_k=top_k)
+
+        # ------------------------------
+        # 3. Top-K
+        # ------------------------------
+        print("[image_edit_ep] Returning results...")
+        results.append({
+            "bg_path": str(bg_file),
+            "edited_image_path": str(edited_image_path),
+            "count": min(top_k, len(scores)),
+            "results": [
+                {
+                    "id": s["id"],
+                    "score": s["score"],
+                    "clothes_path": s.get("metadata"),
+                }
+                for s in scores[:top_k]
+            ],
+        })
+    return results
