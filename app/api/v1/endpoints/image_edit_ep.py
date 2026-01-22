@@ -3,8 +3,6 @@ import uuid
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Form, Request, Depends
 
-from app.services.img_processor import compose_2d_on_background
-from app.services.model_registry import ModelRegistry
 from app.services.image_edit import edit_image_scene_img
 
 router = APIRouter()
@@ -18,12 +16,13 @@ def get_vector_db(request: Request):
     return request.app.state.vector_db
 
 
-@router.post("/image_edit")
+@router.post("/image-edit")
 def retrieve_clothes_image_edit(
     image: UploadFile = File(...),
     top_k: int = Form(5),
     gender: str = Form("male"),
     crop_clothes: bool = Form(True),
+    return_metadata: bool = Form(True),
     vector_db = Depends(get_vector_db),
 ):
     # -------------------------------------------------
@@ -50,11 +49,8 @@ def retrieve_clothes_image_edit(
     print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
     scores = vector_db.search_by_image(edited_image_path, top_k=top_k)
 
-    # -------------------------------------------------
-    # 4. Top-K
-    # -------------------------------------------------
-    print("[image_edit_ep] Returning results...")
-    return {
+    response = {
+        "method": "image-edit",
         "gender": gender,
         "edited_image_path": str(edited_image_path),
         "count": min(top_k, len(scores)),
@@ -68,10 +64,17 @@ def retrieve_clothes_image_edit(
         ],
     }
 
-@router.post("/image_edit/retrieve_all")
+    if not return_metadata:
+        for item in response["results"]:
+            item.pop("clothes_path", None)
+    print("[image_edit_ep] Returning results...")
+    return response
+
+@router.post("/image-edit/retrieve-all")
 def retrieve_all_backgrounds(
     top_k: int = Form(5),
     crop_clothes: bool = Form(True),
+    return_metadata: bool = Form(True),
     vector_db = Depends(get_vector_db),
 ):
     if not RETRIEVAL_RESULTS_DIR.exists():
@@ -100,7 +103,8 @@ def retrieve_all_backgrounds(
             # 3. Top-K
             # ------------------------------
             print("[image_edit_ep] Returning results...")
-            results.append({
+            entry = {
+                "method": "image-edit",
                 "gender": gender,
                 "bg_path": str(bg_file),
                 "edited_image_path": str(edited_image_path),
@@ -109,11 +113,17 @@ def retrieve_all_backgrounds(
                     {
                         "id": s["id"],
                         "score": s["score"],
-                        "clothes_path": s.get("metadata"),
+                        # "clothes_path": s.get("metadata"),
                     }
                     for s in scores[:top_k]
                 ],
-            })
+            }
+
+            if not return_metadata:
+                for item in entry["results"]:
+                    item.pop("clothes_path", None)
+
+            results.append(entry)
 
     with open(RETRIEVAL_RESULTS_DIR / "retrieval_results.json", "w") as f:
         import json
