@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import Field
 
 class Settings(BaseSettings):
     APP_NAME: str = "Multi-Model AI Backend"
@@ -6,7 +7,11 @@ class Settings(BaseSettings):
     DEVICE: str = "cuda"
     LOG_LEVEL: str = "INFO"
 
-    class Config:
-        env_file = ".env"
+    IMAGEROUTER_API_KEY: str = Field(..., description="ImageRouter API key")
+
+    model_config = {
+        "env_file": ".env",
+        "extra": "forbid",
+    }
 
 settings = Settings()

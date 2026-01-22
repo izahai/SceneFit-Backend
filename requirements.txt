@@ -18,3 +18,4 @@ einops
 timm
 ftfy
 diffusers
+faiss-cpu
