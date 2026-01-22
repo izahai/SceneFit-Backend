@@ -21,6 +21,7 @@ def get_vector_db(request: Request):
 def retrieve_clothes_image_edit(
     image: UploadFile = File(...),
     top_k: int = Form(5),
+    gender: str = Form("male"),
     vector_db = Depends(get_vector_db),
 ):
     """
@@ -39,7 +40,7 @@ def retrieve_clothes_image_edit(
     # 2. Get GPT edited images
     # -------------------------------------------------
     print("[image_edit_ep] Editing image via GPT...")
-    edit_result = edit_image_scene_img(bg_path, save_result=False)
+    edit_result = edit_image_scene_img(bg_path, save_result=False, gender=gender)
     edited_image_path = edit_result.get("edited_path", bg_path)
 
     # -------------------------------------------------
@@ -53,6 +54,7 @@ def retrieve_clothes_image_edit(
     # -------------------------------------------------
     print("[image_edit_ep] Returning results...")
     return {
+        "gender": gender,
         "edited_image_path": str(edited_image_path),
         "count": min(top_k, len(scores)),
         "results": [
@@ -72,37 +74,37 @@ def retrieve_all_backgrounds(
 ):
     results = []
     for bg_file in ALL_BG_DIR.glob("*"):
-        
-        # ------------------------------
-        # 1. Edit image via GPT
-        # ------------------------------
+        for gender in ['male', 'female']:
+            # ------------------------------
+            # 1. Edit image via GPT
+            # ------------------------------
 
-        print(f"[image_edit_ep] Editing image via GPT for background: {bg_file}...")
-        edit_result = edit_image_scene_img(bg_file, save_result=False)
-        edited_image_path = edit_result.get("edited_path", bg_file)
+            print(f"[image_edit_ep] Editing image via GPT for background: {bg_file} with gender: {gender}...")
+            edit_result = edit_image_scene_img(bg_file, save_result=False, gender=gender)
+            edited_image_path = edit_result.get("edited_path", bg_file)
 
-        # ------------------------------
-        # 2. Score using PE-Core model
-        # ------------------------------
+            # ------------------------------
+            # 2. Score using PE-Core model
+            # ------------------------------
 
-        print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
-        scores = vector_db.search_by_image(edited_image_path, top_k=top_k)
+            print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
+            scores = vector_db.search_by_image(edited_image_path, top_k=top_k)
 
-        # ------------------------------
-        # 3. Top-K
-        # ------------------------------
-        print("[image_edit_ep] Returning results...")
-        results.append({
-            "bg_path": str(bg_file),
-            "edited_image_path": str(edited_image_path),
-            "count": min(top_k, len(scores)),
-            "results": [
-                {
-                    "id": s["id"],
-                    "score": s["score"],
-                    "clothes_path": s.get("metadata"),
-                }
-                for s in scores[:top_k]
-            ],
-        })
+            # ------------------------------
+            # 3. Top-K
+            # ------------------------------
+            print("[image_edit_ep] Returning results...")
+            results.append({
+                "bg_path": str(bg_file),
+                "edited_image_path": str(edited_image_path),
+                "count": min(top_k, len(scores)),
+                "results": [
+                    {
+                        "id": s["id"],
+                        "score": s["score"],
+                        "clothes_path": s.get("metadata"),
+                    }
+                    for s in scores[:top_k]
+                ],
+            })
     return results

@@ -8,7 +8,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SAVE_DIR = Path('app/data/edited_image/')
-REF_IMAGE_PATH = Path('app/data/man.png')
+REF_IMAGE_PATH_MAN = Path('app/data/man.png')
+REF_IMAGE_PATH_WOMAN = Path('app/data/woman.png')
+
 API_KEY = os.getenv("IMAGEROUTER_API_KEY")
 URL = "https://api.imagerouter.io/v1/openai/images/edits"
 HEADERS = {
@@ -42,9 +44,16 @@ def format_prompt(scene_description):
     )
     return prompt
 
-def edit_image_scene_desc(scene_description, save_result=True):
+def edit_image_scene_desc(scene_description, save_result=True, gender='male'):
 
     prompt = format_prompt(scene_description)
+
+    if gender == 'male':
+        REF_IMAGE_PATH = REF_IMAGE_PATH_MAN
+    elif gender == 'female':
+        REF_IMAGE_PATH = REF_IMAGE_PATH_WOMAN
+    else:
+        raise ValueError("Gender must be 'male' or 'female'")
 
     if not REF_IMAGE_PATH.is_file():
         raise FileNotFoundError(f"Reference image not found: {REF_IMAGE_PATH}")
@@ -75,12 +84,19 @@ def edit_image_scene_desc(scene_description, save_result=True):
 import requests
 from pathlib import Path
 
-def edit_image_scene_img(scene_path, save_result=True):
+def edit_image_scene_img(scene_path, save_result=True, gender='male'):
     prompt = (
         "Change the outfit of this the given into an outfit that matches the scene. "
         "Return the image of such person in the original background of that person (the blue and purple one). "
         "Do not add the person into the scene image."
     )
+
+    if gender == 'male':
+        REF_IMAGE_PATH = REF_IMAGE_PATH_MAN
+    elif gender == 'female':    
+        REF_IMAGE_PATH = REF_IMAGE_PATH_WOMAN
+    else:
+        raise ValueError("Gender must be 'male' or 'female'")
 
     if not REF_IMAGE_PATH.is_file():
         raise FileNotFoundError(f"Reference image not found: {REF_IMAGE_PATH}")
