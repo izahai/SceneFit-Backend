@@ -346,6 +346,7 @@ def composed_retrieval(image: UploadFile = File(...)):
         query_text=signals["scene_caption"],
         candidates=candidates,
     )
+    ModelRegistry.release("qwen_reranker")
     # REMOVE non-serializable fields
     for c in reranked:
         c.pop("image", None)
