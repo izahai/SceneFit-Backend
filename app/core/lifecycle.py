@@ -30,32 +30,24 @@ async def lifespan(app: FastAPI):
 
     #  ---------- Jina ----------
     # print("[START] Loading Jina Model ...")
-    # ModelRegistry.register(
-    #     name="mmEmb",
-    #     model=MmEmbModel(),
-    # )
+    # ModelRegistry.get("jina-v4")
 
     #  ---------- PE ----------
     # print("[START] Loading Perception Model ...")
-    # ModelRegistry.register(
-    #     name="pe",
-    #     model=PEClipModel(),
-    # )
+    # ModelRegistry.get("pe")
     
     # ---------- Qwen3 ----------
-    # print("[START] Loading Qwen3 ...")
-    # ModelRegistry.register(
-    #     name="vlm",
-    #     model=VLModel(),
-    # )
+    print("[START] Loading Qwen3 ...")
+    ModelRegistry.get("vlm")
     
     #  ---------- PE Matcher ----------
     # print("[START] Loading PE Matcher ...")
-    # ModelRegistry.register(
-    #     name="pe_clip_matcher",
-    #     model=PEClipMatcher(),
-    # )
-    
+    # ModelRegistry.get("pe_clip_matcher")
+
+    #  ---------- Text Matcher ----------
+    print("[START] Loading Text Matcher ...")
+    ModelRegistry.get("text_matcher")
+
     # ---------- Diffusion ----------
     # print("[START] Loading Diffusion ...")
     # ModelRegistry.register(

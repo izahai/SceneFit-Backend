@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import os
+import logging
 from typing import List, Tuple
 
 import numpy as np
@@ -18,6 +19,7 @@ from app.utils.util import load_prompt_by_key
 
 _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}
 
+logger = logging.getLogger(__name__)
 
 def _chunked(items: list, size: int):
     for idx in range(0, len(items), size):
@@ -39,6 +41,7 @@ class DiffusionModel:
         dtype: torch.dtype | None = None,
         pipeline_type: str | None = None,
         hf_token: str | None = None,
+        text_encoder_only: bool = True,
         image_size: int = 512,
         num_inference_steps: int = 10,
         noise_step_index: int | None = None,
@@ -53,6 +56,7 @@ class DiffusionModel:
         self.device_type = self.device.type
         self.use_autocast = resolve_autocast(self.device)
         self.hf_token = hf_token or os.getenv("HF_TOKEN")
+        self.text_encoder_only = text_encoder_only
 
         if dtype is None:
             if self.device_type == "cuda":
@@ -105,6 +109,8 @@ class DiffusionModel:
         return "sd15"
 
     def _load_pipeline(self):
+        if self.pipeline_type == "sd3":
+            logger.info("Loading SD3 pipeline: %s", self.model_id)
         kwargs = {"torch_dtype": self.dtype}
         if self.dtype == torch.float16:
             kwargs["variant"] = "fp16"
@@ -141,7 +147,8 @@ class DiffusionModel:
         except OSError:
             kwargs.pop("variant", None)
             self._pipe = _load_pipe(kwargs)
-        self._pipe.to(self.device)
+        if not self.text_encoder_only:
+            self._pipe.to(self.device)
         self._pipe.set_progress_bar_config(disable=True)
         self._pipe.enable_attention_slicing()
         self._pipe.enable_vae_slicing()
@@ -163,17 +170,20 @@ class DiffusionModel:
         self._scheduler = self._pipe.scheduler
         self._scheduler.set_timesteps(self.num_inference_steps, device=self.device)
 
-        if self.pipeline_type == "sd3":
-            (
-                self._prompt_embeds,
-                self._pooled_prompt_embeds,
-                self._uncond_embeds,
-                self._neg_pooled_prompt_embeds,
-            ) = self._encode_prompt_sd3(self.prompt)
+        if self.text_encoder_only:
+            self._encode_prompt_with_text_encoder_only()
         else:
-            self._prompt_embeds = self._encode_prompt(self.prompt)
-            if self.guidance_scale > 1.0:
-                self._uncond_embeds = self._encode_prompt("")
+            if self.pipeline_type == "sd3":
+                (
+                    self._prompt_embeds,
+                    self._pooled_prompt_embeds,
+                    self._uncond_embeds,
+                    self._neg_pooled_prompt_embeds,
+                ) = self._encode_prompt_sd3(self.prompt)
+            else:
+                self._prompt_embeds = self._encode_prompt(self.prompt)
+                if self.guidance_scale > 1.0:
+                    self._uncond_embeds = self._encode_prompt("")
 
         step_index = min(
             max(0, self.noise_step_index),
@@ -183,6 +193,8 @@ class DiffusionModel:
         if not torch.is_tensor(noise_timestep):
             noise_timestep = torch.tensor(noise_timestep)
         self._noise_timestep = noise_timestep.to(self.device)
+        if self.pipeline_type == "sd3":
+            self._log_sd3_devices("after_load")
 
     def _load_prompt_text(self) -> str:
         prompt_cfg = load_prompt_by_key("diffusion_prompt")
@@ -265,6 +277,96 @@ class DiffusionModel:
             raise RuntimeError("SD3 encode_prompt returned unexpected tuple size")
 
         return prompt_embeds, pooled, neg_prompt_embeds, neg_pooled
+
+    def _encode_prompt_with_text_encoder_only(self):
+        if self.pipeline_type == "sd3":
+            self._log_sd3_devices("before_text_encode")
+        self._move_text_encoders(self.device)
+
+        if self.pipeline_type == "sd3":
+            (
+                self._prompt_embeds,
+                self._pooled_prompt_embeds,
+                self._uncond_embeds,
+                self._neg_pooled_prompt_embeds,
+            ) = self._encode_prompt_sd3(self.prompt)
+        else:
+            self._prompt_embeds = self._encode_prompt(self.prompt)
+            if self.guidance_scale > 1.0:
+                self._uncond_embeds = self._encode_prompt("")
+
+        self._move_text_encoders("cpu")
+        if self.pipeline_type == "sd3":
+            self._log_sd3_devices("after_text_offload")
+        self._drop_text_encoders()
+        if self.pipeline_type == "sd3":
+            self._move_module(self._pipe.transformer, self.device)
+        else:
+            self._move_module(self._pipe.unet, self.device)
+        self._move_module(self._pipe.vae, self.device)
+        if self.pipeline_type == "sd3":
+            self._log_sd3_devices("after_denoiser_load")
+
+        if self.pipeline_type != "sd3":
+            self._text_encoder = None
+            self._tokenizer = self._pipe.tokenizer
+
+    def _move_text_encoders(self, device: str | torch.device):
+        if self.pipeline_type == "sd3":
+            self._move_module(getattr(self._pipe, "text_encoder", None), device)
+            self._move_module(getattr(self._pipe, "text_encoder_2", None), device)
+            self._move_module(getattr(self._pipe, "text_encoder_3", None), device)
+        else:
+            self._move_module(getattr(self._pipe, "text_encoder", None), device)
+
+    @staticmethod
+    def _move_module(module, device: str | torch.device):
+        if module is None:
+            return
+        module.to(device)
+
+    def _drop_text_encoders(self):
+        if self.pipeline_type == "sd3":
+            if hasattr(self._pipe, "text_encoder"):
+                del self._pipe.text_encoder
+            if hasattr(self._pipe, "text_encoder_2"):
+                del self._pipe.text_encoder_2
+            if hasattr(self._pipe, "text_encoder_3"):
+                del self._pipe.text_encoder_3
+        else:
+            if hasattr(self._pipe, "text_encoder"):
+                del self._pipe.text_encoder
+        if self._text_encoder is not None:
+            self._text_encoder = None
+        if self.device_type == "cuda":
+            torch.cuda.empty_cache()
+            logger.info(
+                "CUDA memory allocated after drop: %.2f GB",
+                torch.cuda.memory_allocated() / (1024 ** 3),
+            )
+
+    @staticmethod
+    def _module_device(module) -> str:
+        if module is None:
+            return "none"
+        try:
+            param = next(module.parameters())
+        except StopIteration:
+            return "no-params"
+        return str(param.device)
+
+    def _log_sd3_devices(self, stage: str):
+        logger.info(
+            "SD3 devices @ %s | te1=%s te2=%s te3=%s denoiser=%s vae=%s embeds=%s pooled=%s",
+            stage,
+            self._module_device(getattr(self._pipe, "text_encoder", None)),
+            self._module_device(getattr(self._pipe, "text_encoder_2", None)),
+            self._module_device(getattr(self._pipe, "text_encoder_3", None)),
+            self._module_device(getattr(self._pipe, "transformer", None)),
+            self._module_device(getattr(self._pipe, "vae", None)),
+            "none" if self._prompt_embeds is None else str(self._prompt_embeds.device),
+            "none" if self._pooled_prompt_embeds is None else str(self._pooled_prompt_embeds.device),
+        )
 
     def _prepare_image_tensor(self, image: Image.Image) -> torch.Tensor:
         image = image.convert("RGB")
