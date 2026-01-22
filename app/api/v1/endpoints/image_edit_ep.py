@@ -22,10 +22,9 @@ def retrieve_clothes_image_edit(
     image: UploadFile = File(...),
     top_k: int = Form(5),
     gender: str = Form("male"),
+    crop_clothes: bool = Form(True),
     vector_db = Depends(get_vector_db),
 ):
-    """
-    """
     # -------------------------------------------------
     # 1. Save uploaded background
     # -------------------------------------------------
@@ -40,8 +39,9 @@ def retrieve_clothes_image_edit(
     # 2. Get GPT edited images
     # -------------------------------------------------
     print("[image_edit_ep] Editing image via GPT...")
-    edit_result = edit_image_scene_img(bg_path, save_result=False, gender=gender)
+    edit_result = edit_image_scene_img(bg_path, save_result=False, gender=gender, crop_clothes=crop_clothes)
     edited_image_path = edit_result.get("edited_path", bg_path)
+    print(f"[image_edit_ep] Edited image saved to: {edited_image_path}")
 
     # -------------------------------------------------
     # 3. Score using PE-Core model
@@ -70,6 +70,7 @@ def retrieve_clothes_image_edit(
 @router.post("/image_edit/retrieve_all")
 def retrieve_all_backgrounds(
     top_k: int = Form(5),
+    crop_clothes: bool = Form(True),
     vector_db = Depends(get_vector_db),
 ):
     results = []
@@ -80,8 +81,9 @@ def retrieve_all_backgrounds(
             # ------------------------------
 
             print(f"[image_edit_ep] Editing image via GPT for background: {bg_file} with gender: {gender}...")
-            edit_result = edit_image_scene_img(bg_file, save_result=False, gender=gender)
+            edit_result = edit_image_scene_img(bg_file, save_result=False, gender=gender, crop_clothes=crop_clothes)
             edited_image_path = edit_result.get("edited_path", bg_file)
+            print(f"[image_edit_ep] Edited image saved to: {edited_image_path}")
 
             # ------------------------------
             # 2. Score using PE-Core model
@@ -95,6 +97,7 @@ def retrieve_all_backgrounds(
             # ------------------------------
             print("[image_edit_ep] Returning results...")
             results.append({
+                "gender": gender,
                 "bg_path": str(bg_file),
                 "edited_image_path": str(edited_image_path),
                 "count": min(top_k, len(scores)),
