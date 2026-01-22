@@ -18,14 +18,7 @@ class Qwen3VLRerankerWrapper:
             model_name_or_path=model_name_or_path,
             **kwargs,
         )
-    def to(self, device: str):
-        if hasattr(self, "model") and self.model is not None:
-            self.model.to(device)
-        return self
 
-    def release(self):
-        self.model.to("cpu")
-        del self.model
     def rerank(
         self,
         query_text: str,
