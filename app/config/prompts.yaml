@@ -26,6 +26,21 @@ vlm_task: |
   Separate each paragraph with a single newline.
   Do not include numbering or meta commentary.
 
+clothes_caption_2: |
+  You are given an image of a person wearing an outfit.
+  Describe the clothing item in the image in the following order:
+  Top – type (e.g., shirt, jacket), color, pattern.
+  Bottom – type (e.g., pants, skirt), color, pattern.
+  Shoes – type, color. 
+  
+  Rules:
+  - The description must be a single paragraph.
+  - Focus only on the clothing item itself.
+  - Do NOT describe people, body parts, background, lighting, or pose.
+  - Do NOT mention the image, camera, or photo.
+  - Do not number the sentences.
+  - Do not add any extra text.
+
 clothes_caption: |
   You are given an clothes image.
 

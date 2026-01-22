@@ -28,7 +28,7 @@ class VLModel:
 
         self.system_role = load_prompt_by_key("system_role")
         self.vlm_task = load_prompt_by_key("vlm_task")
-        self.clothes_caption = load_prompt_by_key("clothes_caption")
+        self.clothes_caption = load_prompt_by_key("clothes_caption_2")
         self.bg_caption = load_prompt_by_key("bg_caption")
         self.choose_best_clothes_prompt = load_prompt_by_key("choose_best_clothes")
 

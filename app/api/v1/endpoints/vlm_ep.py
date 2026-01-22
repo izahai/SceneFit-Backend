@@ -18,7 +18,7 @@ COMPOSED_DIR = Path("app/uploads/composed")
 COMPOSED_DIR.mkdir(parents=True, exist_ok=True)
 BG_DIR = Path("app/uploads/bg")
 CLOTHES_DIR = Path("app/data/2d")
-CLOTHES_CAPTION = Path("app/data/clothes_captions.json")
+CLOTHES_CAPTION = Path("app/data/clothes_captions2.json")
 BG_DIR.mkdir(parents=True, exist_ok=True)
 
 def _save_bg_upload(image: UploadFile) -> Path:
