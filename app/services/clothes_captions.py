@@ -9,7 +9,7 @@ from app.services.model_registry import ModelRegistry
 
 def generate_clothes_captions_json(
     clothes_dir: Path = Path("app/data/2d"),
-    output_path: Path = Path("app/data/clothes_captions.json"),
+    output_path: Path = Path("app/data/clothes_captions2.json"),
 ):
     """
     Use VLM to generate captions for all clothes images in a folder.
