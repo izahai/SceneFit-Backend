@@ -72,15 +72,15 @@ async def lifespan(app: FastAPI):
 
     # ---------- Vector DB ----------
     global vector_db
-    vector_db = VectorDatabase(
-        embedding_model="pe",
-        use_gpu=True,
-        index_path="app/data/2d/vector.index",
-        metadata_path="app/data/2d/vector.index.meta.json",
-        data_dir="app/data/2d",
-        auto_prepare=True,
-    )
-    app.state.vector_db = vector_db
+    # vector_db = VectorDatabase(
+    #     embedding_model="pe",
+    #     use_gpu=True,
+    #     index_path="app/data/2d/vector.index",
+    #     metadata_path="app/data/2d/vector.index.meta.json",
+    #     data_dir="app/data/2d",
+    #     auto_prepare=True,
+    # )
+    # app.state.vector_db = vector_db
     
     vector_db = VectorDatabase(
         embedding_model="pe",

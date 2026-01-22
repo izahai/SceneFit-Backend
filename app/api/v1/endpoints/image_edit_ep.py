@@ -12,6 +12,7 @@ router = APIRouter()
 BG_DIR = Path("app/uploads/bg")
 BG_DIR.mkdir(parents=True, exist_ok=True)
 ALL_BG_DIR = Path("app/data/bg")
+RETRIEVAL_RESULTS_DIR = Path("app/retrieval_results/image_edit")
 
 def get_vector_db(request: Request):
     return request.app.state.vector_db
@@ -73,6 +74,9 @@ def retrieve_all_backgrounds(
     crop_clothes: bool = Form(True),
     vector_db = Depends(get_vector_db),
 ):
+    if not RETRIEVAL_RESULTS_DIR.exists():
+        os.makedirs(RETRIEVAL_RESULTS_DIR)
+
     results = []
     for bg_file in ALL_BG_DIR.glob("*"):
         for gender in ['male', 'female']:
@@ -110,4 +114,9 @@ def retrieve_all_backgrounds(
                     for s in scores[:top_k]
                 ],
             })
+
+    with open(RETRIEVAL_RESULTS_DIR / "retrieval_results.json", "w") as f:
+        import json
+        json.dump(results, f, indent=2)
+
     return results
