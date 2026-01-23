@@ -14,10 +14,10 @@ from app.utils.util import crop_clothes_region
 
 load_dotenv()
 
-SAVE_DIR = Path('app/data/edited_image/')
-CROPPED_SAVE_DIR = Path('app/data/cropped_clothes/')
-REF_IMAGE_PATH_MAN = Path('app/data/man.png')
-REF_IMAGE_PATH_WOMAN = Path('app/data/woman.png')
+SAVE_DIR = Path('app/retrieval_results/image_edit/edited_image/')
+CROPPED_SAVE_DIR = Path('app/retrieval_results/image_edit/cropped_clothes/')
+REF_IMAGE_PATH_MAN = Path('app/data/ref_images/man.png')
+REF_IMAGE_PATH_WOMAN = Path('app/data/ref_images/woman.png')
 
 API_KEY = os.getenv("IMAGEROUTER_API_KEY")
 URL = "https://api.imagerouter.io/v1/openai/images/edits"
@@ -36,6 +36,7 @@ def save_to_file(result, save_result, crop_clothes=True):
             json.dump(result, f, indent=2)
 
     filepath = SAVE_DIR / f"{img_id}.jpg"
+    cropped_filepath = None
     image_data = requests.get(result['data'][0]['url']).content
     with open(filepath, 'wb') as f:
         f.write(image_data)
@@ -45,10 +46,12 @@ def save_to_file(result, save_result, crop_clothes=True):
             # Also save cropped image separately
             CROPPED_SAVE_DIR.mkdir(parents=True, exist_ok=True)
             cropped_filepath = CROPPED_SAVE_DIR / f"{img_id}_cropped.jpg"
-            filepath = cropped_filepath
             cropped_img.save(cropped_filepath)
             
-    return filepath
+    return {
+        "edited_path": str(filepath),
+        "cropped_path": str(cropped_filepath) if cropped_filepath else None
+    }
 
 def format_prompt(scene_description):
     prompt = (
@@ -92,14 +95,14 @@ def edit_image_scene_desc(scene_description, save_result=True, gender='male', cr
     if result.get('error'):
         raise RuntimeError(f"API Error: {result['error']}")
     
-    edited_path = save_to_file(result=result, save_result=save_result, crop_clothes=crop_clothes)
-    return {"result": result, "edited_path": edited_path}
+    paths = save_to_file(result=result, save_result=save_result, crop_clothes=crop_clothes)
+    return {"result": result, "edited_path": paths["edited_path"], "cropped_path": paths["cropped_path"]}
 
 
 def edit_image_scene_img(scene_path, save_result=True, gender='male', crop_clothes=True):
     prompt = (
         "Change the outfit of this the given into an outfit that matches the scene. "
-        "Return the image of such person in the original background of that person (the blue and purple one). "
+        "Return the image of such person in the original background of that person. "
         "Do not add the person into the scene image."
     )
 
@@ -142,8 +145,8 @@ def edit_image_scene_img(scene_path, save_result=True, gender='male', crop_cloth
         raise RuntimeError(f"API Error: {result['error']}")
 
     result["prompt"] = prompt
-    edited_path = save_to_file(result=result, save_result=save_result, crop_clothes=crop_clothes)
-    return {"result": result, "edited_path": edited_path}
+    paths = save_to_file(result=result, save_result=save_result, crop_clothes=crop_clothes)
+    return {"result": result, "edited_path": paths["edited_path"], "cropped_path": paths["cropped_path"]}
 
 # -----------------------------------------------------
 # For Debugging: only run when executed directly
@@ -152,10 +155,11 @@ def edit_image_scene_img(scene_path, save_result=True, gender='male', crop_cloth
 def main():
     # For testing
     scene_description = "A snowy mountain village with wooden houses and pine trees"
-    bg_image_path = 'app/data/bg/8.png'
+    bg_image_path = 'app/data/bg/1.png'
     # edit_image_scene_desc(scene_description=scene_description, save_result=True)
     result = edit_image_scene_img(scene_path=bg_image_path, save_result=False, crop_clothes=True)
     print("Edited image saved at:", result['edited_path'])
+    print("Cropped image saved at:", result['cropped_path'])
 
 if __name__ == "__main__":
     main()

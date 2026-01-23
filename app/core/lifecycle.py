@@ -37,16 +37,16 @@ async def lifespan(app: FastAPI):
     # ModelRegistry.get("pe")
     
     # ---------- Qwen3 ----------
-    print("[START] Loading Qwen3 ...")
-    ModelRegistry.get("vlm")
+    # print("[START] Loading Qwen3 ...")
+    # ModelRegistry.get("vlm")
     
     #  ---------- PE Matcher ----------
     # print("[START] Loading PE Matcher ...")
     # ModelRegistry.get("pe_clip_matcher")
 
     #  ---------- Text Matcher ----------
-    print("[START] Loading Text Matcher ...")
-    ModelRegistry.get("text_matcher")
+    # print("[START] Loading Text Matcher ...")
+    # ModelRegistry.get("text_matcher")
 
     # ---------- Diffusion ----------
     # print("[START] Loading Diffusion ...")
@@ -64,15 +64,6 @@ async def lifespan(app: FastAPI):
 
     # ---------- Vector DB ----------
     global vector_db
-    # vector_db = VectorDatabase(
-    #     embedding_model="pe",
-    #     use_gpu=True,
-    #     index_path="app/data/2d/vector.index",
-    #     metadata_path="app/data/2d/vector.index.meta.json",
-    #     data_dir="app/data/2d",
-    #     auto_prepare=True,
-    # )
-    # app.state.vector_db = vector_db
     
     vector_db = VectorDatabase(
         embedding_model="pe",
