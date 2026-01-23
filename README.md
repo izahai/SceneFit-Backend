@@ -83,10 +83,41 @@ Example request (apply-feedback) — pseudo JSON for multipart form:
 }
 ```
 
-**Method: (placeholder for next method)**
-- Endpoint: `POST /api/v1/retrieval/<method-name>`
-- Request extras: ...
-- Response extras: ...
+**VLM Faiss Composed Fashion Retrieval**
+- Endpoint: `POST /api/v1/retrieval/vlm-faiss-composed-retrieval`
+
+Example response (vlm-faiss-composed-retrieval):
+
+```json
+{
+  "method": "vlm-faiss-composed-retrieval",
+  "count": 10,
+  "count": 10,
+  "scene_caption": "This vibrant, sunlit outdoor scene features a lush purple floral meadow under a bright blue sky, with cascading purple trees and rocky terrain, suggesting a casual, festive spring or summer outing where bold, complementary colors like soft pastels or earthy tones would harmonize with the vivid purple palette.",
+  "results": [
+    {
+      "name_clothes": "m1_light_22.png",
+      "similarity": 0.30995649099349976,
+      "rerank_score": 0.3404726982116699
+    },
+    {
+      "name_clothes": "m6_brown_5.png",
+      "similarity": 0.3073599338531494,
+      "rerank_score": 0.32914280891418457
+    },
+    {
+      "name_clothes": "m1_light_13.png",
+      "similarity": 0.287604421377182,
+      "rerank_score": 0.3193117380142212
+    }    
+  ],
+  "best": {
+    "name_clothes": "m1_light_22.png",
+    "similarity": 0.30995649099349976,
+    "rerank_score": 0.3404726982116699
+  }
+}
+```
 
 **Contributor Guide (add a new retrieval endpoint)**
 - Expose as `POST /api/v1/retrieval/<method-name>`; accept `image` plus `top_k` and method-specific knobs.
