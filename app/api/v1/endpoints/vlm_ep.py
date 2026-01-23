@@ -92,7 +92,7 @@ def _build_query_embedding(
     scene_caption: str,
     bg_image_emb: torch.Tensor,
     matcher,
-    weights=(0.45, 0.45, 0.10),
+    weights=(0.65, 0.25, 0.10),
 ):
     w_color, w_scene, w_img = weights
 
