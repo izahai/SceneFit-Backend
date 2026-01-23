@@ -3,6 +3,7 @@ from app.services.model_registry import ModelRegistry
 import io
 import numpy as np
 import soundfile as sf
+import librosa
 
 SAMPLE_RATE = 16000
 
@@ -26,7 +27,6 @@ def load_audio_from_upload(file: UploadFile,) -> np.ndarray:
 
     # Resample if needed
     if sr != SAMPLE_RATE:
-        import librosa
         data = librosa.resample(data, orig_sr=sr, target_sr=SAMPLE_RATE)
 
     return data
