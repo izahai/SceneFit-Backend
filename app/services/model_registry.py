@@ -59,8 +59,6 @@ class ModelRegistry:
         elif name == "qwen_reranker":
             model = Qwen3VLRerankerWrapper()
         
-        else:
-            raise ValueError(f"Unknown model: {name}")
 
         #model.load()
         elif name == "asr":
