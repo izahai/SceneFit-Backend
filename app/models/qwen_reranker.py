@@ -1,6 +1,6 @@
 from typing import List, Dict
 from PIL import Image
-
+import torch
 from app.models.scripts.qwen3_vl_reranker import Qwen3VLReranker
 
 
@@ -18,6 +18,10 @@ class Qwen3VLRerankerWrapper:
             model_name_or_path=model_name_or_path,
             **kwargs,
         )
+    def release(self):
+        #self.model.to("cpu")
+        del self.model
+        torch.cuda.empty_cache()
 
     def rerank(
         self,
