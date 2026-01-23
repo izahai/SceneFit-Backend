@@ -128,7 +128,7 @@ def edit_image_scene_img(
         else:
             raise ValueError("Gender must be 'male' or 'female'")
     else:
-        REF_IMAGE_PATH = ref_image_path
+        REF_IMAGE_PATH = Path(ref_image_path)
 
     if not REF_IMAGE_PATH.is_file():
         raise FileNotFoundError(f"Reference image not found: {REF_IMAGE_PATH}")
