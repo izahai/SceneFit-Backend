@@ -288,7 +288,7 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
     }
 
 @router.post("/vlm-faiss-composed-retrieval")
-def composed_retrieval(image: UploadFile = File(...)):
+def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
     bg_path = _save_bg_upload(image)
 
     vlm = ModelRegistry.get("vlm")
@@ -326,7 +326,7 @@ def composed_retrieval(image: UploadFile = File(...)):
     # -------------------------
     candidates = matcher.match_clothes(
         query_emb=query_emb,
-        top_k=10,
+        top_k=top_k,
     )
     ModelRegistry.release("pe_clip_matcher")
     print("Got 4")
@@ -352,6 +352,8 @@ def composed_retrieval(image: UploadFile = File(...)):
         c.pop("image", None)
     
     return {
+        "method": "vlm-faiss-composed-retrieval",
+        "count": len(reranked),
         "scene_caption": signals["scene_caption"],
         "results": reranked,
         "best": reranked[0] if reranked else None,
