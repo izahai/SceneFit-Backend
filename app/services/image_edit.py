@@ -99,19 +99,36 @@ def edit_image_scene_desc(scene_description, save_result=True, gender='male', cr
     return {"result": result, "edited_path": paths["edited_path"], "cropped_path": paths["cropped_path"]}
 
 
-def edit_image_scene_img(scene_path, save_result=True, gender='male', crop_clothes=True):
-    prompt = (
-        "Change the outfit of this the given into an outfit that matches the scene. "
-        "Return the image of such person in the original background of that person. "
-        "Do not add the person into the scene image."
-    )
+def edit_image_scene_img(
+    scene_path,
+    save_result=True,
+    gender='male',
+    crop_clothes=True,
+    preference_text: str | None = None,
+    feedback_text: str | None = None,
+    ref_image_path: Path | None = None,
+):
+    prompt_parts = [
+        "Change the outfit of the given person into an outfit that matches the scene.",
+        "Return the image of such person in the original background of that person.",
+        "Do not add the person into the scene image.",
+    ]
+    if preference_text:
+        prompt_parts.append(f"User preference: {preference_text}.")
+    if feedback_text:
+        prompt_parts.append(f"Additional feedback: {feedback_text}.")
 
-    if gender == 'male':
-        REF_IMAGE_PATH = REF_IMAGE_PATH_MAN
-    elif gender == 'female':    
-        REF_IMAGE_PATH = REF_IMAGE_PATH_WOMAN
+    prompt = " ".join(prompt_parts)
+
+    if not ref_image_path:
+        if gender == 'male':
+            REF_IMAGE_PATH = REF_IMAGE_PATH_MAN
+        elif gender == 'female':    
+            REF_IMAGE_PATH = REF_IMAGE_PATH_WOMAN
+        else:
+            raise ValueError("Gender must be 'male' or 'female'")
     else:
-        raise ValueError("Gender must be 'male' or 'female'")
+        REF_IMAGE_PATH = ref_image_path
 
     if not REF_IMAGE_PATH.is_file():
         raise FileNotFoundError(f"Reference image not found: {REF_IMAGE_PATH}")
@@ -146,7 +163,7 @@ def edit_image_scene_img(scene_path, save_result=True, gender='male', crop_cloth
 
     result["prompt"] = prompt
     paths = save_to_file(result=result, save_result=save_result, crop_clothes=crop_clothes)
-    return {"result": result, "edited_path": paths["edited_path"], "cropped_path": paths["cropped_path"]}
+    return {"result": result, "edited_path": paths["edited_path"], "cropped_path": paths["cropped_path"], "ref_path": str(REF_IMAGE_PATH)}
 
 # -----------------------------------------------------
 # For Debugging: only run when executed directly
