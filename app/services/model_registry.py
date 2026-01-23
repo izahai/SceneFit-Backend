@@ -30,8 +30,8 @@ class ModelRegistry:
 
         if hasattr(model, "release"):
             model.release()
-        elif hasattr(model, "model"):
-            model.model.to("cpu")
+        # elif hasattr(model, "model"):
+        #     model.model.to("cpu")
 
         del cls._models[name]
 

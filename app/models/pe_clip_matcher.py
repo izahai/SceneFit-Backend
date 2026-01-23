@@ -67,13 +67,10 @@ class PEClipMatcher:
     # -------------------------------------------------
     # FAISS loading
     # -------------------------------------------------
-    def to(self, device: str):
-        if hasattr(self, "model") and self.model is not None:
-            self.model.to(device)
-        return self
     def release(self):
-        self.model.to("cpu")
+        #self.model.to("cpu")
         del self.model
+        torch.cuda.empty_cache()
     def _load_faiss(self, faiss_dir: str):
         faiss_dir = Path(faiss_dir)
 

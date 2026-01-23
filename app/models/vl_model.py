@@ -35,14 +35,13 @@ class VLModel:
     # -------------------------
     # Core generation helper
     # -------------------------
-    def to(self, device: str):
-        if hasattr(self, "model") and self.model is not None:
-            self.model.to(device)
-        return self
+    
 
     def release(self):
-        self.model.to("cpu")
+        #self.model.to("cpu")
         del self.model
+        torch.cuda.empty_cache()
+
     @torch.no_grad()
     def _generate(self, messages: list[dict]) -> str:
         inputs = self.processor.apply_chat_template(
