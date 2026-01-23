@@ -6,6 +6,9 @@ from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Body
 from PIL import Image
 import time
+import torch
+import torch.nn.functional as F
+import gc
 
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
@@ -70,6 +73,7 @@ def _rank_clothes_by_image(descriptions: list[str], top_k: int = 10):
     matcher = ModelRegistry.get("pe_clip_matcher")
     return matcher.match_clothes(
         descriptions=descriptions,
+        query_emb=None,
         clothes=clothes,
         top_k=top_k,
     )
@@ -84,6 +88,27 @@ def _rank_clothes_by_caption(descriptions: list[str],
         clothes_captions=clothes_captions,
         top_k=top_k,
     )
+
+def _build_query_embedding(
+    color_outfits: list[str],
+    scene_caption: str,
+    bg_image_emb: torch.Tensor,
+    matcher,
+    weights=(0.65, 0.25, 0.10),
+):
+    w_color, w_scene, w_img = weights
+
+    color_emb = matcher.encode_text(color_outfits)
+    scene_emb = matcher.encode_text([scene_caption])
+
+    query = (
+        w_color * color_emb +
+        w_scene * scene_emb +
+        w_img * bg_image_emb
+    )
+
+    return F.normalize(query, dim=-1)
+
 
 def _rank_clothes_by_feedback(descriptions: list[str],
                             matcher_name: str = "text_matcher",
@@ -276,6 +301,79 @@ def get_clothes_all_methods(image: UploadFile = File(...)):
             "result": res3
         },
     }
+
+@router.post("/vlm-faiss-composed-retrieval")
+def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
+    bg_path = _save_bg_upload(image)
+
+    vlm = ModelRegistry.get("vlm")
+    
+
+    # -------------------------
+    # Extract query signals
+    # -------------------------
+    signals = vlm.extract_query_signals(str(bg_path))
+    print("Got 0")
+    ModelRegistry.release("vlm")
+    print("Got 1")
+    matcher = ModelRegistry.get("pe_clip_matcher")
+    print("Got 2")
+    # -------------------------
+    # Background image embedding
+    # -------------------------
+    bg_img = Image.open(bg_path).convert("RGB")
+    bg_emb = matcher.encode_image([bg_img])  # (1, D)
+
+    # -------------------------
+    # Build fused query
+    # -------------------------
+    query_emb = _build_query_embedding(
+        signals["color_outfits"],
+        signals["scene_caption"],
+        bg_emb,
+        matcher,
+    )
+    
+    print("Got 3")
+
+    # -------------------------
+    # FAISS retrieval (coarse)
+    # -------------------------
+    candidates = matcher.match_clothes(
+        query_emb=query_emb,
+        top_k=top_k,
+    )
+    ModelRegistry.release("pe_clip_matcher")
+    print("Got 4")
+    reranker = ModelRegistry.get("qwen_reranker")
+    print("Got 5")
+    # Attach captions + images for reranker
+    for c in candidates:
+        c["image"] = Image.open(
+            Path("app/data/2d") / f"{c['name_clothes']}"
+        ).convert("RGB")
+        #c["caption"] = c.get("caption", "")
+
+    # -------------------------
+    # Qwen3-VL reranking (fine)
+    # -------------------------
+    reranked = reranker.rerank(
+        query_text=signals["scene_caption"],
+        candidates=candidates,
+    )
+    ModelRegistry.release("qwen_reranker")
+    # REMOVE non-serializable fields
+    for c in reranked:
+        c.pop("image", None)
+    
+    return {
+        "method": "vlm-faiss-composed-retrieval",
+        "count": len(reranked),
+        "scene_caption": signals["scene_caption"],
+        "results": reranked,
+        "best": reranked[0] if reranked else None,
+    }
+
 
 @router.post("/vlm-caption-feedback")
 def get_clothes_by_feedback(payload: dict = Body(...)):

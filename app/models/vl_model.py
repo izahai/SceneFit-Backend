@@ -13,7 +13,7 @@ class VLModel:
     def __init__(
         self,
         model_name: str = "Qwen/Qwen3-VL-4B-Instruct",
-        max_new_tokens: int = 10000,
+        max_new_tokens: int = 256,
     ):
         self.model_name = model_name
         self.max_new_tokens = max_new_tokens
@@ -35,6 +35,13 @@ class VLModel:
     # -------------------------
     # Core generation helper
     # -------------------------
+    
+
+    def release(self):
+        #self.model.to("cpu")
+        del self.model
+        torch.cuda.empty_cache()
+
     @torch.no_grad()
     def _generate(self, messages: list[dict]) -> str:
         inputs = self.processor.apply_chat_template(
@@ -172,3 +179,26 @@ class VLModel:
                 return name
 
         return candidates[0][0]
+    
+    def extract_query_signals(self, image_path: str) -> dict:
+        """
+        Extract all signals needed for retrieval, using existing prompts.
+        """
+        image = Image.open(image_path).convert("RGB")
+        image = self.resize_image(image)
+
+        # Color harmony (Baseline 1/2)
+        color_outfits = self.generate_clothing_from_image(image_path)
+
+        # Semantic scene understanding (Baseline 3)
+        scene_caption = self.generate_clothes_caption(
+            image_path, self.bg_caption
+        )
+
+        return {
+            "color_outfits": color_outfits,
+            "scene_caption": scene_caption,
+        }
+    
+
+
