@@ -14,6 +14,59 @@ _PROMPT_CONFIG_PATH = Path("app/config/prompts.yaml")
 _CLOTHES_JSON = Path("app/data/clothes.json")
 _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
 
+
+def crop_clothes_region(
+    image: Image.Image,
+    bottom_fraction: float = 0.70,
+    horizontal_fraction: float = 0.60,
+    keep_square: bool = False,
+) -> Image.Image:
+    """
+    Heuristic crop for clothing on front-facing, full-body renders.
+
+    Args:
+        image: PIL image of a full-body character on solid background.
+        bottom_fraction: Keep this fraction of the image height from the bottom (e.g., 0.70 keeps bottom 70%).
+        horizontal_fraction: Fraction of image width to keep, centered horizontally (e.g., 0.60 keeps centered 60%).
+        keep_square: If True, expand the crop to a square around the center.
+
+    Returns:
+        Cropped PIL image focused on the clothing region.
+    """
+
+    w, h = image.size
+
+    # Vertical crop: keep the bottom N% (default 70%)
+    bottom = h
+    top = max(0, int(h * (1.0 - bottom_fraction)))
+
+    # Horizontal crop: keep a centered fraction (default 60%)
+    horizontal_fraction = max(0.0, min(1.0, horizontal_fraction))
+    crop_width = int(w * horizontal_fraction)
+    crop_width = max(1, min(w, crop_width))
+    center_x = w // 2
+    half_width = crop_width // 2
+    left = max(0, center_x - half_width)
+    right = min(w, center_x + half_width)
+
+    # Optional square adjustment to keep downstream resize behavior predictable
+    if keep_square:
+        crop_w = right - left
+        crop_h = bottom - top
+        side = max(crop_w, crop_h)
+        half_side = side // 2
+        left = max(0, center_x - half_side)
+        right = min(w, center_x + half_side)
+        mid_y = (top + bottom) // 2
+        top = max(0, mid_y - half_side)
+        bottom = min(h, mid_y + half_side)
+
+    # Guard against degenerate boxes
+    if right - left <= 1 or bottom - top <= 1:
+        return image
+
+    return image.crop((left, top, right, bottom))
+
 def load_prompts(task: str) -> list[str]:
     with open(_PROMPT_CONFIG_PATH, "r") as f:
         data = yaml.safe_load(f)
@@ -88,3 +141,10 @@ def load_str_images_from_folder(folder: str):
         p for p in folder.iterdir()
         if p.suffix.lower() in {".png", ".jpg", ".jpeg"}
     ]
+
+if __name__ == "__main__":
+    # Test cropping function
+    test_image_path = BASE_DIR / "app/data/edited_image/17.jpg"
+    with Image.open(test_image_path) as img:
+        cropped = crop_clothes_region(img, keep_square=True)
+        cropped.show()

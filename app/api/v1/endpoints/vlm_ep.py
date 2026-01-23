@@ -3,7 +3,7 @@
 import json
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Body
 from PIL import Image
 import time
 import torch
@@ -78,9 +78,11 @@ def _rank_clothes_by_image(descriptions: list[str], top_k: int = 10):
         top_k=top_k,
     )
 
-def _rank_clothes_by_caption(descriptions: list[str], top_k: int = 10):
+def _rank_clothes_by_caption(descriptions: list[str],
+                            matcher_name: str = "text_matcher",
+                            top_k: int = 10):
     clothes_captions = _get_clothes_captions()
-    matcher = ModelRegistry.get("pe_clip_matcher")
+    matcher = ModelRegistry.get(matcher_name)
     return matcher.match_clothes_captions(
         descriptions=descriptions,
         clothes_captions=clothes_captions,
@@ -107,6 +109,19 @@ def _build_query_embedding(
 
     return F.normalize(query, dim=-1)
 
+
+def _rank_clothes_by_feedback(descriptions: list[str],
+                            matcher_name: str = "text_matcher",
+                            top_k: int = 10,
+                            fb_text: str | None = None):
+    clothes_captions = _get_clothes_captions()
+    matcher = ModelRegistry.get(matcher_name)
+    return matcher.match_clothes_captions(
+        descriptions=descriptions,
+        clothes_captions=clothes_captions,
+        fb_text=fb_text,
+        top_k=top_k,
+    )
 
 @router.post("/vlm-generated-clothes-captions")
 def get_vlm_descriptions(
@@ -154,7 +169,7 @@ def get_clothes_by_image_match_captions(image: UploadFile = File(...)):
     """
     1. Upload image
     2. VLM generates clothing descriptions
-    3. PE-CLIP ranks clothes by similarity using captions JSON
+    3. Matcher ranks clothes by similarity using captions JSON
     """
 
     # -------------------------
@@ -360,3 +375,20 @@ def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
     }
 
 
+@router.post("/vlm-caption-feedback")
+def get_clothes_by_feedback(payload: dict = Body(...)):
+
+    descriptions = payload["descriptions"]
+    fb_text = payload.get("fb_text")
+
+    results = _rank_clothes_by_feedback(
+        descriptions=descriptions,
+        top_k=10,
+        fb_text=fb_text,
+    )
+
+    return {
+        "query": descriptions,
+        "feedback": fb_text,
+        "results": results,
+    }

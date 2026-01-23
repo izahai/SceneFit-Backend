@@ -9,6 +9,9 @@ from app.models.vl_model import VLModel
 from app.models.pe_clip_matcher import PEClipMatcher
 from app.models.diffusion_model import DiffusionModel
 from app.models.negative_generator import NegativePEModel
+from app.models.asr_model import ASRModel
+from app.models.text_macher_model import TextMatcherModel
+
 class ModelRegistry:
     _models: Dict[str, object] = {}
 
@@ -53,8 +56,6 @@ class ModelRegistry:
                 pipeline_type="sd3",
                 text_encoder_only=True,
             )
-        elif name == "negative_pe":
-            model = NegativePEModel()
         elif name == "qwen_reranker":
             model = Qwen3VLRerankerWrapper()
         
@@ -62,4 +63,14 @@ class ModelRegistry:
             raise ValueError(f"Unknown model: {name}")
 
         #model.load()
+        elif name == "asr":
+            model = ASRModel()
+        elif name == "text_matcher":
+            model = TextMatcherModel()
+        else:
+            raise ValueError(f"Unknown model: {name}")
+
+        load_method = getattr(model, "load", None)
+        if callable(load_method):
+            load_method()
         return model
