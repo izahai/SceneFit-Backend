@@ -15,7 +15,11 @@ RETRIEVAL_RESULTS_DIR = Path("app/retrieval_results/image_edit")
 def get_vector_db(request: Request):
     return request.app.state.vector_db
 
-
+def _extract_outfit_name(meta: str | None) -> str | None:
+    if not meta:
+        return None
+    return Path(meta).stem  # filename without extension
+    
 @router.post("/image-edit")
 def retrieve_clothes_image_edit(
     image: UploadFile = File(...),
@@ -40,23 +44,25 @@ def retrieve_clothes_image_edit(
     # -------------------------------------------------
     print("[image_edit_ep] Editing image via GPT...")
     edit_result = edit_image_scene_img(bg_path, save_result=False, gender=gender, crop_clothes=crop_clothes)
-    edited_image_path = edit_result.get("edited_path", bg_path)
-    print(f"[image_edit_ep] Edited image saved to: {edited_image_path}")
+    processed_image_path = edit_result.get("cropped_path") if crop_clothes else edit_result.get("edited_path")
+    print(f"[image_edit_ep] Processed image saved to: {processed_image_path}")
 
     # -------------------------------------------------
     # 3. Score using PE-Core model
     # -------------------------------------------------
     print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
-    scores = vector_db.search_by_image(edited_image_path, top_k=top_k)
+    scores = vector_db.search_by_image(processed_image_path, top_k=top_k)
+
+
 
     response = {
         "method": "image-edit",
         "gender": gender,
-        "edited_image_path": str(edited_image_path),
+        "edited_image_path": str(processed_image_path),
         "count": min(top_k, len(scores)),
         "results": [
             {
-                "id": s["id"],
+                "outfit_name": _extract_outfit_name(s.get("metadata")),
                 "score": s["score"],
                 "clothes_path": s.get("metadata"),
             }
@@ -89,15 +95,15 @@ def retrieve_all_backgrounds(
 
             print(f"[image_edit_ep] Editing image via GPT for background: {bg_file} with gender: {gender}...")
             edit_result = edit_image_scene_img(bg_file, save_result=False, gender=gender, crop_clothes=crop_clothes)
-            edited_image_path = edit_result.get("edited_path", bg_file)
-            print(f"[image_edit_ep] Edited image saved to: {edited_image_path}")
+            processed_image_path = edit_result.get("cropped_path") if crop_clothes else edit_result.get("edited_path")
+            print(f"[image_edit_ep] Processed image saved to: {processed_image_path}")
 
             # ------------------------------
             # 2. Score using PE-Core model
             # ------------------------------
 
             print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
-            scores = vector_db.search_by_image(edited_image_path, top_k=top_k)
+            scores = vector_db.search_by_image(processed_image_path, top_k=top_k)
 
             # ------------------------------
             # 3. Top-K
@@ -107,13 +113,13 @@ def retrieve_all_backgrounds(
                 "method": "image-edit",
                 "gender": gender,
                 "bg_path": str(bg_file),
-                "edited_image_path": str(edited_image_path),
+                "edited_image_path": str(processed_image_path),
                 "count": min(top_k, len(scores)),
                 "results": [
                     {
-                        "id": s["id"],
+                        "outfit_name": _extract_outfit_name(s.get("metadata")),
                         "score": s["score"],
-                        # "clothes_path": s.get("metadata"),
+                        "clothes_path": s.get("metadata"),
                     }
                     for s in scores[:top_k]
                 ],
