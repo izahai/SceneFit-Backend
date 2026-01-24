@@ -19,3 +19,10 @@ timm
 ftfy
 diffusers
 faiss-cpu
+rembg[gpu]
+ftfy
+pyngrok
+soundfile
+librosa
+unsloth
+qwen_vl_utils
