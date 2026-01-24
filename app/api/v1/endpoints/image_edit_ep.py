@@ -66,6 +66,7 @@ def retrieve_clothes_image_edit(
     # 2. Get GPT edited images
     # -------------------------------------------------
     pref_text = preference_text or convert_speech_to_text(preference_audio)
+    print(f"[image_edit_ep] Preference text: {pref_text}")
 
     edit_result = None
     print("[image_edit_ep] Editing image via GPT...")
@@ -139,6 +140,8 @@ def apply_feedback_image_edit(
 
     pref_text = session.get("preference_text", "") 
     fb_text = feedback_text or convert_speech_to_text(feedback_audio)
+    print(f"[image_edit_ep] Preference text: {pref_text}")
+    print(f"[image_edit_ep] Feedback text: {fb_text}")
 
     scene_input = session.get("bg_path")
     if scene_input is None:
