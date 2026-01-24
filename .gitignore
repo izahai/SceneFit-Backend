@@ -11,3 +11,6 @@ front_view.png
 app/outputs/*
 app/uploads/*
 app/data/*
+venv
+data
+.env
