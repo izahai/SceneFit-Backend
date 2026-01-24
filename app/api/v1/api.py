@@ -7,6 +7,7 @@ from app.api.v1.endpoints import pe_clip_ep
 from app.api.v1.endpoints import vlm_ep
 from app.api.v1.endpoints import neg_pe_clip_ep
 from app.api.v1.endpoints import image_edit_ep
+from app.api.v1.endpoints import aesthetic_ep
 
 
 api_router = APIRouter()

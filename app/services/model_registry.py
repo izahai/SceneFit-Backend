@@ -7,6 +7,7 @@ from app.models.pe_clip_model import PEClipModel
 from app.models.qwen_reranker import Qwen3VLRerankerWrapper
 from app.models.vl_model import VLModel
 from app.models.pe_clip_matcher import PEClipMatcher
+from app.models.aesthetic_predictor import AestheticPredictor
 from app.models.diffusion_model import DiffusionModel
 from app.models.negative_generator import NegativePEModel
 from app.models.asr_model import ASRModel
@@ -50,6 +51,8 @@ class ModelRegistry:
             model = VLModel()
         elif name == "pe_clip_matcher":
             model = PEClipMatcher()
+        elif name == "aesthetic":
+            model = AestheticPredictor()            
         elif name == "diffusion":
             model = DiffusionModel(
                 model_id="stabilityai/stable-diffusion-3.5-medium",
