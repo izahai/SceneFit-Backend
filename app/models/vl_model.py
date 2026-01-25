@@ -110,7 +110,7 @@ class VLModel:
             {
                 "role": "system",
                 "content": [{"type": "text", "text": self.system_role}],
-            },
+            },   
             {
                 "role": "user",
                 "content": [
