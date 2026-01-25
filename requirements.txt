@@ -26,3 +26,4 @@ soundfile
 librosa
 unsloth
 qwen_vl_utils
+websockets
