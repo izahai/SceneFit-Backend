@@ -95,25 +95,33 @@ def _build_query_embedding(
     bg_image_emb: torch.Tensor,
     matcher,
     n_good: int = 7,
-    bad_penalty: float = 0.6,
-    weights=(0.65, 0.25, 0.10),
+    weights=(0.70, 0.15, 0.15),
+    domain_suffix: str = ", 3D rendered character model, game asset style"
 ):
-    w_color, w_scene, w_img = weights
+    w_semantic, w_scene, w_img = weights
+
+    color_outfits = [desc + domain_suffix for desc in color_outfits]
 
     # Encode
-    color_emb = matcher.encode_text(color_outfits)   # (10, D)
+    semantic_emb = matcher.encode_text(color_outfits)   # (10, D)
     scene_emb = matcher.encode_text([scene_caption]) # (1, D)
 
-    good_emb = color_emb[:n_good]      # (7, D)
-    bad_emb  = color_emb[n_good:]      # (3, D)
+    good_emb = semantic_emb[:n_good]      # (7, D)
+    bad_emb  = semantic_emb[n_good:]      # (3, D)
 
-    bad_centroid = bad_emb.mean(dim=0, keepdim=True)  # (1, D)
+    bad_vec = bad_emb.mean(dim=0, keepdim=True)
+    bad_unit = F.normalize(bad_vec, p=2, dim=-1) # Hat b
+        
+        # 3. Orthogonal Rejection: Remove 'bad' component from 'good'
+        # Projection = (good @ bad.T) * bad
+    projection = (good_emb @ bad_unit.T) * bad_unit
+    clean_good = good_emb - projection # Strictly orthogonal now
 
     # Build 7 contrastive queries (diverse)
     queries = (
-        w_color * (good_emb - bad_penalty * bad_centroid)
-        + w_scene * scene_emb
-        + w_img * bg_image_emb
+        w_semantic * clean_good +
+        w_scene * scene_emb +
+        w_img * bg_image_emb
     )
 
     return F.normalize(queries, dim=-1)  # (7, D)
