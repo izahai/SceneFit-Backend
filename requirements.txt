@@ -27,3 +27,4 @@ librosa
 unsloth
 qwen_vl_utils
 websockets
+open-clip-torch
