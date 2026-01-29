@@ -124,6 +124,97 @@ def retrieve_clothes_image_edit(
     print("[image_edit_ep] Returning results...")
     return response
 
+@router.post("/image-edit-flux")
+def retrieve_clothes_image_edit(
+    image: UploadFile = File(...),
+    top_k: int = Form(5),
+    gender: str = Form("male"),
+    crop_clothes: bool = Form(True),
+    return_metadata: bool = Form(True),
+    preference_text: str | None = Form(None),
+    preference_audio: UploadFile | None = File(None),
+    vector_db = Depends(get_vector_db),
+):
+    # -------------------------------------------------
+    # 1. Save uploaded background
+    # -------------------------------------------------
+    suffix = Path(image.filename).suffix or ".png"
+    bg_filename = f"{uuid.uuid4().hex}{suffix}"
+    bg_path = BG_DIR / bg_filename
+
+    with open(bg_path, "wb") as f:
+        f.write(image.file.read())
+
+    # -------------------------------------------------
+    # 2. Get outfit suggestion
+    # -------------------------------------------------
+    vlm = ModelRegistry.get('vlm')
+
+    outfit_desc = vlm.suggest_outfit_from_bg(bg_path)
+    print(f"[image_edit_ep] Outfit suggestion: {outfit_desc}")
+    vlm.release()
+
+    # flux_model = ModelRegistry.get('flux')
+
+    # pref_text = preference_text or convert_speech_to_text(preference_audio)
+    # print(f"[image_edit_ep] Preference text: {pref_text}")
+
+    # edit_result = None
+    # print("[image_edit_ep] Editing image via GPT...")
+    # edit_result = edit_image_scene_img(
+    #     bg_path,
+    #     save_result=True,
+    #     gender=gender,
+    #     crop_clothes=crop_clothes,
+    #     preference_text=pref_text,
+    #     ref_image_path=None
+    # )
+    # processed_image_path = edit_result.get("cropped_path") if crop_clothes else edit_result.get("edited_path")
+    # ref_image_path = edit_result.get("ref_path")
+    # print(f"[image_edit_ep] Reference image used: {ref_image_path}")
+    # print(f"[image_edit_ep] Processed image saved to: {processed_image_path}")
+
+    # # -------------------------------------------------
+    # # 3. Score using PE-Core model
+    # # -------------------------------------------------
+    # print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
+    # scores = vector_db.search_by_image(processed_image_path, top_k=top_k)
+
+    # session_id = uuid.uuid4().hex
+    # edited_path_raw = edit_result.get("edited_path") if edit_result else processed_image_path
+    # cropped_path_raw = edit_result.get("cropped_path") if edit_result else None
+    # RETRIEVAL_SESSIONS[session_id] = {
+    #     "bg_path": str(bg_path),
+    #     "edited_path": _as_optional_str(edited_path_raw),
+    #     "cropped_path": _as_optional_str(cropped_path_raw),
+    #     "ref_path": _as_optional_str(ref_image_path),
+    #     "gender": gender,
+    #     "preference_text": pref_text,
+    # }
+
+    # response = {
+    #     "method": "image-edit",
+    #     "gender": gender,
+    #     "edited_image_path": str(processed_image_path),
+    #     "ref_image_path": str(ref_image_path) if ref_image_path else None,
+    #     "session_id": session_id,
+    #     "count": min(top_k, len(scores)),
+    #     "results": [
+    #         {
+    #             "outfit_name": _extract_outfit_name(s.get("metadata")),
+    #             "score": s["score"],
+    #             "clothes_path": s.get("metadata"),
+    #         }
+    #         for s in scores[:top_k]
+    #     ],
+    # }
+
+    # if not return_metadata:
+    #     for item in response["results"]:
+    #         item.pop("clothes_path", None)
+    # print("[image_edit_ep] Returning results...")
+    # return response
+
 
 @router.post("/image-edit/apply-feedback")
 def apply_feedback_image_edit(
