@@ -12,6 +12,7 @@ from app.models.diffusion_model import DiffusionModel
 from app.models.negative_generator import NegativePEModel
 from app.models.asr_model import ASRModel
 from app.models.text_macher_model import TextMatcherModel
+from app.models.image_edit_model import ImageEditFlux
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
@@ -68,6 +69,8 @@ class ModelRegistry:
             model = ASRModel()
         elif name == "text_matcher":
             model = TextMatcherModel()
+        elif name == "image_edit_flux":
+            model = ImageEditFlux()
         else:
             raise ValueError(f"Unknown model: {name}")
 

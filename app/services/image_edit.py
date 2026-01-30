@@ -10,6 +10,7 @@ from PIL import Image
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
+from app.services.model_registry import ModelRegistry
 from app.utils.util import crop_clothes_region
 
 load_dotenv()
@@ -52,6 +53,21 @@ def save_to_file(result, save_result, crop_clothes=True):
         "edited_path": str(filepath),
         "cropped_path": str(cropped_filepath) if cropped_filepath else None
     }
+
+def save_edited_image(edited_image: Image.Image, cropped_image: Image.Image | None = None) -> dict:
+    SAVE_DIR.mkdir(parents=True, exist_ok=True)
+    img_id = sum(1 for _ in SAVE_DIR.glob("*.jpg")) + 1
+    filepath = SAVE_DIR / f"{img_id}.jpg"
+    edited_image.save(filepath)
+    result = {"edited_path": str(filepath)}
+
+    if cropped_image:
+        CROPPED_SAVE_DIR.mkdir(parents=True, exist_ok=True)
+        cropped_filepath = CROPPED_SAVE_DIR / f"{img_id}_cropped.jpg"
+        cropped_image.save(cropped_filepath)
+        result["cropped_path"] = str(cropped_filepath)
+
+    return result
 
 def format_prompt(scene_description):
     prompt = (
@@ -165,6 +181,37 @@ def edit_image_scene_img(
     paths = save_to_file(result=result, save_result=save_result, crop_clothes=crop_clothes)
     return {"result": result, "edited_path": paths["edited_path"], "cropped_path": paths["cropped_path"], "ref_path": str(REF_IMAGE_PATH)}
 
+def edit_image_outfit_desc(
+    outfit_description: str,
+    save_result=True,
+    gender='male',
+    crop_clothes=True,
+    preference_text: str | None = None,
+    ref_image_path: Path | None = None,
+    model_name='image_edit_flux'
+):
+    model = ModelRegistry.get(f"image_edit_{model_name}")
+
+    edited_image = model.edit_outfit_desc(
+        outfit_description=outfit_description,
+        save_result=save_result,
+        gender=gender,
+        crop_clothes=crop_clothes,
+        preference_text=preference_text,
+        ref_image_path=ref_image_path
+    )
+
+    if crop_clothes:
+        cropped_image = crop_clothes_region(edited_image)
+
+    paths = save_edited_image(
+        edited_image=edited_image,
+        cropped_image=cropped_image if crop_clothes else None
+    )
+
+    return paths
+    
+    
 # -----------------------------------------------------
 # For Debugging: only run when executed directly
 # -----------------------------------------------------
@@ -180,4 +227,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

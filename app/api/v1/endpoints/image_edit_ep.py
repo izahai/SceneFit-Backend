@@ -6,7 +6,7 @@ from typing import Optional
 import numpy as np
 from fastapi import APIRouter, UploadFile, File, Form, Request, Depends, HTTPException
 
-from app.services.image_edit import edit_image_scene_img
+from app.services.image_edit import edit_image_scene_img, edit_image_outfit_desc
 from app.services.model_registry import ModelRegistry
 from app.services.speech_to_text import load_audio_from_upload, convert_speech_to_text
 
@@ -125,7 +125,7 @@ def retrieve_clothes_image_edit(
     return response
 
 @router.post("/image-edit-flux")
-def retrieve_clothes_image_edit(
+def retrieve_clothes_image_edit_flux(
     image: UploadFile = File(...),
     top_k: int = Form(5),
     gender: str = Form("male"),
@@ -154,66 +154,67 @@ def retrieve_clothes_image_edit(
     print(f"[image_edit_ep] Outfit suggestion: {outfit_desc}")
     vlm.release()
 
-    # flux_model = ModelRegistry.get('flux')
 
-    # pref_text = preference_text or convert_speech_to_text(preference_audio)
-    # print(f"[image_edit_ep] Preference text: {pref_text}")
+    # -------------------------------------------------
+    # 3. Image Edit with Flux
+    # -------------------------------------------------
+    pref_text = preference_text or convert_speech_to_text(preference_audio)
+    print(f"[image_edit_ep] Preference text: {pref_text}")
 
-    # edit_result = None
-    # print("[image_edit_ep] Editing image via GPT...")
-    # edit_result = edit_image_scene_img(
-    #     bg_path,
-    #     save_result=True,
-    #     gender=gender,
-    #     crop_clothes=crop_clothes,
-    #     preference_text=pref_text,
-    #     ref_image_path=None
-    # )
-    # processed_image_path = edit_result.get("cropped_path") if crop_clothes else edit_result.get("edited_path")
-    # ref_image_path = edit_result.get("ref_path")
-    # print(f"[image_edit_ep] Reference image used: {ref_image_path}")
-    # print(f"[image_edit_ep] Processed image saved to: {processed_image_path}")
+    edit_result = None
+    print("[image_edit_ep] Editing image via Flux...")
+    edit_result = edit_image_outfit_desc(
+        outfit_description=outfit_desc,
+        gender=gender,
+        crop_clothes=crop_clothes,
+        preference_text=pref_text,
+        ref_image_path=None
+    )
+    processed_image_path = edit_result.get("cropped_path") if crop_clothes else edit_result.get("edited_path")
+    ref_image_path = edit_result.get("ref_path")
+    print(f"[image_edit_ep] Reference image used: {ref_image_path}")
+    print(f"[image_edit_ep] Processed image saved to: {processed_image_path}")
 
-    # # -------------------------------------------------
-    # # 3. Score using PE-Core model
-    # # -------------------------------------------------
-    # print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
-    # scores = vector_db.search_by_image(processed_image_path, top_k=top_k)
+    # -------------------------------------------------
+    # 3. Score using PE-Core model
+    # -------------------------------------------------
+    print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
+    scores = vector_db.search_by_image(processed_image_path, top_k=top_k)
 
-    # session_id = uuid.uuid4().hex
-    # edited_path_raw = edit_result.get("edited_path") if edit_result else processed_image_path
-    # cropped_path_raw = edit_result.get("cropped_path") if edit_result else None
-    # RETRIEVAL_SESSIONS[session_id] = {
-    #     "bg_path": str(bg_path),
-    #     "edited_path": _as_optional_str(edited_path_raw),
-    #     "cropped_path": _as_optional_str(cropped_path_raw),
-    #     "ref_path": _as_optional_str(ref_image_path),
-    #     "gender": gender,
-    #     "preference_text": pref_text,
-    # }
+    session_id = uuid.uuid4().hex
+    edited_path_raw = edit_result.get("edited_path") if edit_result else processed_image_path
+    cropped_path_raw = edit_result.get("cropped_path") if edit_result else None
+    RETRIEVAL_SESSIONS[session_id] = {
+        "bg_path": str(bg_path),
+        "edited_path": _as_optional_str(edited_path_raw),
+        "cropped_path": _as_optional_str(cropped_path_raw),
+        "ref_path": _as_optional_str(ref_image_path),
+        "gender": gender,
+        "preference_text": pref_text,
+    }
 
-    # response = {
-    #     "method": "image-edit",
-    #     "gender": gender,
-    #     "edited_image_path": str(processed_image_path),
-    #     "ref_image_path": str(ref_image_path) if ref_image_path else None,
-    #     "session_id": session_id,
-    #     "count": min(top_k, len(scores)),
-    #     "results": [
-    #         {
-    #             "outfit_name": _extract_outfit_name(s.get("metadata")),
-    #             "score": s["score"],
-    #             "clothes_path": s.get("metadata"),
-    #         }
-    #         for s in scores[:top_k]
-    #     ],
-    # }
+    response = {
+        "method": "image-edit-flux",
+        "gender": gender,
+        "edited_image_path": str(processed_image_path),
+        "ref_image_path": str(ref_image_path) if ref_image_path else None,
+        "session_id": session_id,
+        "count": min(top_k, len(scores)),
+        "results": [
+            {
+                "outfit_name": _extract_outfit_name(s.get("metadata")),
+                "score": s["score"],
+                "clothes_path": s.get("metadata"),
+            }
+            for s in scores[:top_k]
+        ],
+    }
 
-    # if not return_metadata:
-    #     for item in response["results"]:
-    #         item.pop("clothes_path", None)
-    # print("[image_edit_ep] Returning results...")
-    # return response
+    if not return_metadata:
+        for item in response["results"]:
+            item.pop("clothes_path", None)
+    print("[image_edit_ep] Returning results...")
+    return response
 
 
 @router.post("/image-edit/apply-feedback")
