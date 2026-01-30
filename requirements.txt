@@ -29,3 +29,4 @@ qwen_vl_utils
 websockets
 open-clip-torch
 git+https://github.com/huggingface/diffusers.git
+huggingface_hub
