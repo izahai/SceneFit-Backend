@@ -190,7 +190,7 @@ def edit_image_outfit_desc(
     ref_image_path: Path | None = None,
     model_name='image_edit_flux'
 ):
-    model = ModelRegistry.get(f"image_edit_{model_name}")
+    model = ModelRegistry.get(f"{model_name}")
 
     edited_image = model.edit_outfit_desc(
         outfit_description=outfit_description,

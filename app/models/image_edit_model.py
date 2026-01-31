@@ -4,7 +4,6 @@ from  diffusers import Flux2KleinPipeline
 import torch
 from io import BytesIO
 from PIL import Image
-from services.model_registry import ModelRegistry
 
 REF_IMAGE_PATH_MAN = Path('app/data/ref_images/man.png')
 REF_IMAGE_PATH_WOMAN = Path('app/data/ref_images/woman.png')

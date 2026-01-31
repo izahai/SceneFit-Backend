@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import torch
 
 from app.core.vector_db import VectorDatabase
+from app.models.image_edit_model import ImageEditFlux
 from app.services.model_registry import ModelRegistry
 from app.models.mmemb_model import MmEmbModel
 from app.models.pe_clip_model import PEClipModel
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI):
     # ---------- Qwen3 ----------
     # print("[START] Loading Qwen3 ...")
     ModelRegistry.get("vlm")
+
     #ModelRegistry.get("qwen_reranker")
     #  ---------- PE Matcher ----------
     # print("[START] Loading PE Matcher ...")
@@ -57,6 +59,14 @@ async def lifespan(app: FastAPI):
     #     name="vqvae",
     #     model=VQVAEModel(),
     # )
+
+    # ---------- Flux ----------
+    print("[START] Loading Flux Image Edit Model ...")
+    ModelRegistry.register(
+        name="image_edit_flux",
+        model=ImageEditFlux(),
+    )
+    ModelRegistry.get("image_edit_flux")
 
     # ---------- Vector DB ----------
     global vector_db
