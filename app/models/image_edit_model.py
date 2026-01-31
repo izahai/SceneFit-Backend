@@ -31,12 +31,12 @@ class ImageEditFlux(ImageEditModel):
     def __init__(self):
         super().__init__(model_name="ImageEditFlux")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model  = Flux2KleinPipeline.from_pretrained("black-forest-labs/FLUX.2-klein-4B", torch_dtype=torch.bfloat16).to(self.device)
+        self.model  = Flux2KleinPipeline.from_pretrained("black-forest-labs/FLUX.2-klein-9B", torch_dtype=torch.bfloat16).to(self.device)
 
     def _get_prompt(self, outfit_description: str, preference_text: str) -> str:
         prompt = (
             "Change the outfit of this person into the outfit described as: "
-            f"{outfit_description}. "
+            f"{outfit_description}. Do not change the background of the image, just change the outfit. "
             "Consider these preferences: "
             f"{preference_text}"
         )
@@ -59,7 +59,7 @@ class ImageEditFlux(ImageEditModel):
                 raise ValueError("Gender must be 'male' or 'female'")
         img = Image.open(ref_image_path).convert("RGB")
         img = img.resize((512,512))
-        images = self.model(
+        output = self.model(
             image=img,
             prompt = self._get_prompt(outfit_description, preference_text or ""),
             height=512,
@@ -69,5 +69,5 @@ class ImageEditFlux(ImageEditModel):
             generator=torch.Generator(device=self.device).manual_seed(0)
         )
 
-        edited_image = images[0]
+        edited_image = output.images[0]
         return edited_image
