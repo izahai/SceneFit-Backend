@@ -414,3 +414,18 @@ def get_clothes_by_feedback(payload: dict = Body(...)):
         "feedback": fb_text,
         "results": results,
     }
+
+
+@router.post("/vlm-suggest-outfit")
+def suggest_outfit(bg_image: UploadFile = File(...)):
+    bg_path = _save_bg_upload(bg_image)
+
+    vlm = ModelRegistry.get("vlm")
+
+    outfit_desc = vlm.suggest_outfit_from_bg(str(bg_path))
+    print(f"[vlm_ep] Outfit suggestion: {outfit_desc}")
+
+    return {
+        "bg_image": bg_image.filename,
+        "outfit_description": outfit_desc,
+    }

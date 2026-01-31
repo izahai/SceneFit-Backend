@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from dotenv import load_dotenv
 from PIL import Image
+from fastapi import HTTPException
+import mimetypes
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
@@ -22,6 +24,8 @@ REF_IMAGE_PATH_WOMAN = Path('app/data/ref_images/woman.png')
 
 API_KEY = os.getenv("IMAGEROUTER_API_KEY")
 URL = "https://api.imagerouter.io/v1/openai/images/edits"
+VLM_BASE_URL = "https://nondepressed-semipneumatically-eveline.ngrok-free.dev"
+
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}"
 }
@@ -211,7 +215,31 @@ def edit_image_outfit_desc(
 
     return paths
     
-    
+
+
+def get_outfit_suggestion_remote(bg_path: Path) -> str:
+    """Call remote VLM service to get outfit suggestion for a background image."""
+    url = f"{VLM_BASE_URL}/vlm-suggest-outfit"
+    mime_type, _ = mimetypes.guess_type(bg_path)
+    mime_type = mime_type or "image/png"
+    with open(bg_path, "rb") as fp:
+        files = {"bg_image": (bg_path.name, fp, mime_type)}
+        resp = requests.post(url, files=files, timeout=60)
+
+    if not resp.ok:
+        raise HTTPException(status_code=502, detail=f"VLM service error {resp.status_code}: {resp.text}")
+
+    try:
+        data = resp.json()
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=502, detail=f"Invalid VLM response: {resp.text}") from exc
+
+    outfit_desc = data.get("outfit_description")
+    if not outfit_desc:
+        raise HTTPException(status_code=502, detail="VLM response missing outfit_description")
+
+    return outfit_desc
+
 # -----------------------------------------------------
 # For Debugging: only run when executed directly
 # -----------------------------------------------------

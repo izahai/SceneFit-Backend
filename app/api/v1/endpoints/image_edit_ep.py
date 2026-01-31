@@ -1,12 +1,14 @@
 import os
 import uuid
 import io
+import mimetypes
 from pathlib import Path
 from typing import Optional
 import numpy as np
+import requests
 from fastapi import APIRouter, UploadFile, File, Form, Request, Depends, HTTPException
 
-from app.services.image_edit import edit_image_scene_img, edit_image_outfit_desc
+from app.services.image_edit import edit_image_scene_img, edit_image_outfit_desc, get_outfit_suggestion_remote
 from app.services.model_registry import ModelRegistry
 from app.services.speech_to_text import load_audio_from_upload, convert_speech_to_text
 
@@ -40,6 +42,9 @@ def _save_upload(file: UploadFile, directory: Path) -> Path:
     with open(out_path, "wb") as f:
         f.write(file.file.read())
     return out_path
+
+
+
     
 @router.post("/image-edit")
 def retrieve_clothes_image_edit(
@@ -146,14 +151,10 @@ def retrieve_clothes_image_edit_flux(
         f.write(image.file.read())
 
     # -------------------------------------------------
-    # 2. Get outfit suggestion
+    # 2. Get outfit suggestion from remote VLM service
     # -------------------------------------------------
-    vlm = ModelRegistry.get('vlm')
-
-    outfit_desc = vlm.suggest_outfit_from_bg(bg_path)
+    outfit_desc = get_outfit_suggestion_remote(bg_path)
     print(f"[image_edit_ep] Outfit suggestion: {outfit_desc}")
-    vlm.release()
-
 
     # -------------------------------------------------
     # 3. Image Edit with Flux

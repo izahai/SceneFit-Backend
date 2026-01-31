@@ -45,3 +45,4 @@ def generate_clothes_captions_json(
 
     print(f"\n✅ Saved captions to: {output_path}")
     return captions
+
