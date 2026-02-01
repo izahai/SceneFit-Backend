@@ -1,6 +1,9 @@
 from io import BytesIO
 import sys
 import requests
+import urllib3
+from requests.adapters import HTTPAdapter
+from urllib3.util.ssl_ import create_urllib3_context
 import base64
 import os
 import json
@@ -9,6 +12,7 @@ from dotenv import load_dotenv
 from PIL import Image
 from fastapi import HTTPException
 import mimetypes
+import ssl
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
@@ -24,7 +28,8 @@ REF_IMAGE_PATH_WOMAN = Path('app/data/ref_images/woman.png')
 
 API_KEY = os.getenv("IMAGEROUTER_API_KEY")
 URL = "https://api.imagerouter.io/v1/openai/images/edits"
-VLM_BASE_URL = "https://nondepressed-semipneumatically-eveline.ngrok-free.dev"
+VLM_BASE_URL = os.getenv("VLM_BASE_URL", "https://nondepressed-semipneumatically-eveline.ngrok-free.dev")
+VLM_VERIFY_SSL = os.getenv("VLM_VERIFY_SSL", "true").lower() != "false"
 
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}"
@@ -216,15 +221,51 @@ def edit_image_outfit_desc(
     return paths
     
 
-
-def get_outfit_suggestion_remote(bg_path: Path) -> str:
+def get_outfit_suggestion_remote(bg_path: Path, verify_ssl: bool | None = None) -> str:
     """Call remote VLM service to get outfit suggestion for a background image."""
-    url = f"{VLM_BASE_URL}/vlm-suggest-outfit"
+    url = f"{VLM_BASE_URL}/api/v1/retrieval/vlm-suggest-outfit"
     mime_type, _ = mimetypes.guess_type(bg_path)
     mime_type = mime_type or "image/png"
-    with open(bg_path, "rb") as fp:
-        files = {"bg_image": (bg_path.name, fp, mime_type)}
-        resp = requests.post(url, files=files, timeout=60)
+    verify = VLM_VERIFY_SSL if verify_ssl is None else verify_ssl
+
+    # Ngrok-free requires this header to bypass the browser warning page
+    headers = {"ngrok-skip-browser-warning": "true"}
+
+    # Create a custom SSL context that's more lenient for ngrok
+    class SSLContextAdapter(HTTPAdapter):
+        def init_poolmanager(self, *args, **kwargs):
+            ctx = create_urllib3_context()
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            kwargs['ssl_context'] = ctx
+            return super().init_poolmanager(*args, **kwargs)
+
+    def _send(verify_flag: bool, target_url: str = url):
+        session = requests.Session()
+        if not verify_flag:
+            # Use custom adapter for better ngrok compatibility
+            session.mount('https://', SSLContextAdapter())
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        with open(bg_path, "rb") as fp:
+            files = {"bg_image": (bg_path.name, fp, mime_type)}
+            return session.post(target_url, files=files, headers=headers, timeout=60, verify=verify_flag)
+
+    try:
+        resp = _send(verify)
+    except requests.exceptions.SSLError as ssl_err:
+        # If SSL fails and verification is enabled, retry once with verification disabled
+        if verify:
+            try:
+                resp = _send(False)
+            except Exception as retry_err:
+                raise HTTPException(status_code=502, detail=f"VLM SSL error (verify=True): {ssl_err}; Retry with verify=False failed: {retry_err}") from ssl_err
+        else:
+            # SSL protocol error even with verify=False - report it clearly
+            raise HTTPException(status_code=502, detail=f"VLM SSL protocol error: {ssl_err}. Check that the VLM server is running and ngrok tunnel is active.") from ssl_err
+    except requests.exceptions.RequestException as req_err:
+        raise HTTPException(status_code=502, detail=f"VLM connection error: {req_err}") from req_err
 
     if not resp.ok:
         raise HTTPException(status_code=502, detail=f"VLM service error {resp.status_code}: {resp.text}")
@@ -245,13 +286,12 @@ def get_outfit_suggestion_remote(bg_path: Path) -> str:
 # -----------------------------------------------------
 
 def main():
-    # For testing
-    scene_description = "A snowy mountain village with wooden houses and pine trees"
-    bg_image_path = 'app/data/bg/1.png'
-    # edit_image_scene_desc(scene_description=scene_description, save_result=True)
-    result = edit_image_scene_img(scene_path=bg_image_path, save_result=False, crop_clothes=True)
-    print("Edited image saved at:", result['edited_path'])
-    print("Cropped image saved at:", result['cropped_path'])
+    bg_image_path = Path('app/data/bg/1.png')
+
+    print("Requesting outfit suggestion from remote VLM...")
+    # Disable SSL verification for local testing against ngrok if cert chain breaks
+    outfit_desc = get_outfit_suggestion_remote(bg_image_path, verify_ssl=False)
+    print("Outfit suggestion:", outfit_desc)
 
 if __name__ == "__main__":
     main()
