@@ -120,3 +120,67 @@
     "rerank_score": 0.41561001539230347
   }
 }
+
+
+{
+  "method": "vlm-faiss-composed-retrieval",
+  "count": 10,
+  "scene_caption": "This vibrant, sunlit outdoor scene features a field of purple flowers under a bright blue sky, surrounded by cascading purple trees and rocky terrain, suggesting a casual, cheerful spring or summer day perfect for light, colorful, and breathable clothing that complements the vivid purple and green tones.",
+  "results": [
+    {
+      "name_clothes": "avatars_ad56d7730bfd427aaf9677c0a2832786.png",
+      "similarity": 0.2713354825973511,
+      "rerank_score": 0.33645108342170715
+    },
+    {
+      "name_clothes": "avatars_7f8a319e60a442a09b3363b0efc63de5.png",
+      "similarity": 0.26883774995803833,
+      "rerank_score": 0.3333745300769806
+    },
+    {
+      "name_clothes": "avatars_c4e36d88a50849e38f271f9570f04cf7.png",
+      "similarity": 0.27215754985809326,
+      "rerank_score": 0.3129391372203827
+    },
+    {
+      "name_clothes": "avatars_1f19e7485f824d95ba1236b22fce8620.png",
+      "similarity": 0.2811240553855896,
+      "rerank_score": 0.3053753077983856
+    },
+    {
+      "name_clothes": "avatars_25c9a73c21084d8c9de08c24a22479c4.png",
+      "similarity": 0.2754352390766144,
+      "rerank_score": 0.2988414168357849
+    },
+    {
+      "name_clothes": "avatars_0897ecda4c0249339070911a3a969206.png",
+      "similarity": 0.2830156683921814,
+      "rerank_score": 0.2913392186164856
+    },
+    {
+      "name_clothes": "avatars_44943d65275a4b29b08e692e9d91ce95.png",
+      "similarity": 0.26985442638397217,
+      "rerank_score": 0.28558698296546936
+    },
+    {
+      "name_clothes": "avatars_909f9eb4a670471b8365b42034b7e045.png",
+      "similarity": 0.2690908908843994,
+      "rerank_score": 0.27889981865882874
+    },
+    {
+      "name_clothes": "avatars_addb93897bec4bd2b9488b01ceb0bf9e.png",
+      "similarity": 0.27695006132125854,
+      "rerank_score": 0.26413965225219727
+    },
+    {
+      "name_clothes": "avatars_c57f656e23954722a64a62997787b03c.png",
+      "similarity": 0.26888835430145264,
+      "rerank_score": 0.2464873045682907
+    }
+  ],
+  "best": {
+    "name_clothes": "avatars_ad56d7730bfd427aaf9677c0a2832786.png",
+    "similarity": 0.2713354825973511,
+    "rerank_score": 0.33645108342170715
+  }
+}

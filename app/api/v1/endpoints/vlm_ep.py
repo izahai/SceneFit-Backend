@@ -95,7 +95,7 @@ def _build_query_embedding(
     bg_image_emb: torch.Tensor,
     matcher,
     n_good: int = 7,
-    weights=(0.70, 0.15, 0.15),
+    weights=(0.40, 0.4, 0.2),
     domain_suffix: str = ", 3D rendered character model, game asset style"
 ):
     w_semantic, w_scene, w_img = weights
