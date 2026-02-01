@@ -62,10 +62,10 @@ class ImageEditFlux(ImageEditModel):
         output = self.model(
             image=img,
             prompt = self._get_prompt(outfit_description, preference_text or ""),
-            height=512,
-            width=512,
+            height=1024,
+            width=1024,
             num_inference_steps=30,
-            guidance_scale=2.0,
+            guidance_scale=7.0,
             generator=torch.Generator(device=self.device).manual_seed(0)
         )
 

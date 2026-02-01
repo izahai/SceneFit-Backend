@@ -203,9 +203,9 @@ def edit_image_outfit_desc(
 
     edited_image = model.edit_outfit_desc(
         outfit_description=outfit_description,
-        save_result=save_result,
+        # save_result=save_result,
         gender=gender,
-        crop_clothes=crop_clothes,
+        # crop_clothes=crop_clothes,
         preference_text=preference_text,
         ref_image_path=ref_image_path
     )

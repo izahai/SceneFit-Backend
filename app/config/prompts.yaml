@@ -30,9 +30,10 @@ suggest_outfit: |
   Analyze the provided background image.
   Generate exactly 1 short paragraph.
   The paragraph describes a single outfit with style that complements and is suitable to the background.
-  Each sentence should list clothing items and their colors with detailed descriptions (fabric, fit, layering, accents).
+  The description should list clothing items and their colors with detailed descriptions (fabric, fit, layering, accents).
   Include upper-body garments, lower-body garments, and footwear.
   Do not include numbering or meta commentary.
+  Do not mention any thing about the background given. Describe the outfit only within 50 words.
 
 clothes_caption: |
   You are given an clothes image.
