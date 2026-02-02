@@ -1,0 +1,70 @@
+methods:
+  method1:
+    name: "Method 1"
+    description: "First research method"
+    base_url: "https://your-ngrok-url-1.ngrok.io"
+    endpoints:
+      generate: "/api/generate"
+      process: "/api/process"
+      health: "/health"
+    
+  method2:
+    name: "Method 2"
+    description: "Second research method"
+    base_url: "https://your-ngrok-url-2.ngrok.io"
+    endpoints:
+      generate: "/api/generate"
+      process: "/api/process"
+      health: "/health"
+    
+  method3:
+    name: "Method 3"
+    description: "Third research method"
+    base_url: "https://your-ngrok-url-3.ngrok.io"
+    endpoints:
+      generate: "/api/generate"
+      process: "/api/process"
+      health: "/health"
+    
+  method4:
+    name: "Method 4"
+    description: "Fourth research method"
+    base_url: "https://your-ngrok-url-4.ngrok.io"
+    endpoints:
+      generate: "/api/generate"
+      process: "/api/process"
+      health: "/health"
+
+# VLM Evaluator Configuration
+vlm_evaluators:
+  gpt4v:
+    model: "gpt-4-vision-preview"
+    api_type: "openai"
+    max_tokens: 1000
+    temperature: 0.0
+    
+  claude_vision:
+    model: "claude-3-opus-20240229"
+    api_type: "anthropic"
+    max_tokens: 1000
+    temperature: 0.0
+    
+  gemini_vision:
+    model: "gemini-pro-vision"
+    api_type: "google"
+    max_tokens: 1000
+    temperature: 0.0
+
+# Evaluation Metrics
+metrics:
+  - "relevance"
+  - "quality"
+  - "coherence"
+  - "accuracy"
+
+# Experiment Settings
+experiment:
+  results_dir: "experiments/results"
+  batch_size: 10
+  timeout: 30  # seconds
+  retry_attempts: 3
