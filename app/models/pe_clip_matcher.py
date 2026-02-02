@@ -136,57 +136,41 @@ class PEClipMatcher:
     def match_clothes(
         self,
         descriptions: List[str] | None = None,
-        query_emb: torch.Tensor | None = None,
+        query_emb: torch.Tensor = None,
         clothes: List[Tuple[str, Image.Image]] | None = None,
         top_k: int | None = None,
     ):
         """
         If FAISS is loaded:
-            Multi-query FAISS retrieval with soft aggregation (LogSumExp)
+            uses FAISS (new method)
         Else:
-            Falls back to brute-force matching
+            falls back to brute-force (original baseline)
         """
-
         if query_emb is None:
             query_emb = self._build_query_embedding(descriptions)
 
+        # ---------- FAISS PATH ----------
         k = top_k or 10
 
-        # =================================================
-        # FAISS PATH (used in production)
-        # =================================================
+    # ---------- FAISS PATH ----------
         if self.faiss_index is not None:
             query_np = query_emb.cpu().numpy().astype("float32")
 
-            # scores, indices: [Q, k]
+            # scores, indices: [N, k]
             scores, indices = self.faiss_index.search(query_np, k)
 
-            # ---- Soft aggregation over queries ----
-            # idx -> list of similarity scores
-            score_buckets: dict[int, list[float]] = {}
+            # aggregate by max similarity per index
+            best_scores = {}
 
             for qi in range(scores.shape[0]):
                 for score, idx in zip(scores[qi], indices[qi]):
-                    score_buckets.setdefault(int(idx), []).append(float(score))
+                    score = float(score)
+                    if idx not in best_scores or score > best_scores[idx]:
+                        best_scores[idx] = score
 
-            # LogSumExp aggregation (soft OR)
-            tau = 0.07  # temperature, stable for CLIP-scale similarities
-            aggregated_scores = {}
-
-            for idx, sims in score_buckets.items():
-                # numerically stable log-sum-exp
-                max_s = max(sims)
-                lse = max_s + torch.log(
-                    torch.tensor(
-                        [torch.exp(torch.tensor((s - max_s) / tau)) for s in sims]
-                    ).sum()
-                ).item() * tau
-
-                aggregated_scores[idx] = lse
-
-            # sort by aggregated similarity
+            # sort by similarity
             sorted_items = sorted(
-                aggregated_scores.items(),
+                best_scores.items(),
                 key=lambda x: x[1],
                 reverse=True
             )
@@ -196,30 +180,23 @@ class PEClipMatcher:
                     "name_clothes": self.faiss_meta["filenames"][idx],
                     "similarity": score,
                 }
-                for idx, score in sorted_items[:k]
+                for idx, score in sorted_items[:top_k]
             ]
 
             return results
 
-        # =================================================
-        # BRUTE-FORCE PATH (debug / fallback)
-        # =================================================
+        # ---------- BRUTE-FORCE PATH ----------
         assert clothes is not None, "Clothes images required for brute-force."
 
         names, images = zip(*clothes)
         image_embs = self.encode_image(list(images))
         image_embs = F.normalize(image_embs, dim=-1)
 
-        # sims: [M, Q]
+        # sims: [M, N]
         sims = image_embs @ query_emb.T
 
-        # ---- Soft aggregation instead of max ----
-        tau = 0.07
-        max_sims, _ = sims.max(dim=1, keepdim=True)
-        final_sims = (
-            max_sims +
-            torch.log(torch.exp((sims - max_sims) / tau).sum(dim=1, keepdim=True))
-        ).squeeze(1) * tau
+        # MAX aggregation over queries → [M]
+        final_sims = sims.max(dim=1).values
 
         results = [
             {
@@ -230,8 +207,7 @@ class PEClipMatcher:
         ]
 
         results.sort(key=lambda x: x["similarity"], reverse=True)
-        return results[:k]
-
+        return results[:top_k] if top_k else results
 
     # -------------------------------------------------
     # MATCH BY CAPTION (Baseline 2, unchanged semantics)
