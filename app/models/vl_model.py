@@ -202,7 +202,7 @@ class VLModel:
             "scene_caption": scene_caption,
         }
     
-    def suggest_outfit_from_bg(self, bg_path: str) -> str:
+    def suggest_outfit_from_bg(self, bg_path: str, preference_text: str | None = None, feedback_text: str | None = None) -> str:
         """
         Suggest an outfit given a background image
         """
@@ -210,6 +210,11 @@ class VLModel:
         image = self.resize_image(image)
 
         prompt = self.suggest_outfit_prompt
+        if preference_text:
+            prompt += f" Consider these preferences: {preference_text}."
+        if feedback_text:
+            prompt += f" Also consider this feedback: {feedback_text}."
+            
         messages = [
             {
                 "role": "user",

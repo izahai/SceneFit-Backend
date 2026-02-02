@@ -45,7 +45,7 @@ def _save_upload(file: UploadFile, directory: Path) -> Path:
 
 
 
-    
+
 @router.post("/image-edit")
 def retrieve_clothes_image_edit(
     image: UploadFile = File(...),
@@ -153,22 +153,21 @@ def retrieve_clothes_image_edit_flux(
     # -------------------------------------------------
     # 2. Get outfit suggestion from remote VLM service
     # -------------------------------------------------
-    outfit_desc = get_outfit_suggestion_remote(bg_path)
+    pref_text = preference_text or convert_speech_to_text(preference_audio)
+    print(f"[image_edit_ep] Preference text: {pref_text}")
+    
+    outfit_desc = get_outfit_suggestion_remote(bg_path, preference_text=pref_text)
     print(f"[image_edit_ep] Outfit suggestion: {outfit_desc}")
 
     # -------------------------------------------------
     # 3. Image Edit with Flux
     # -------------------------------------------------
-    pref_text = preference_text or convert_speech_to_text(preference_audio)
-    print(f"[image_edit_ep] Preference text: {pref_text}")
-
     edit_result = None
     print("[image_edit_ep] Editing image via Flux...")
     edit_result = edit_image_outfit_desc(
         outfit_description=outfit_desc,
         gender=gender,
         crop_clothes=crop_clothes,
-        preference_text=pref_text,
         ref_image_path=None
     )
     processed_image_path = edit_result.get("cropped_path") if crop_clothes else edit_result.get("edited_path")
@@ -177,7 +176,7 @@ def retrieve_clothes_image_edit_flux(
     print(f"[image_edit_ep] Processed image saved to: {processed_image_path}")
 
     # -------------------------------------------------
-    # 3. Score using PE-Core model
+    # 4. Score using PE-Core model
     # -------------------------------------------------
     print("[image_edit_ep] Retrieving best matched clothes via vector DB...")
     scores = vector_db.search_by_image(processed_image_path, top_k=top_k)
@@ -217,6 +216,75 @@ def retrieve_clothes_image_edit_flux(
     print("[image_edit_ep] Returning results...")
     return response
 
+@router.post("/image-edit-flux/apply-feedback")
+def apply_feedback_image_edit_flux(
+    session_id: str = Form(...),
+    top_k: int = Form(5),
+    crop_clothes: bool = Form(True),
+    feedback_text: str | None = Form(None),
+    feedback_audio: UploadFile | None = File(None),
+    vector_db = Depends(get_vector_db),
+):
+    session = RETRIEVAL_SESSIONS.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found. Start a new retrieval first.")
+
+    # -------------------------------------------------
+    # 2. Get outfit suggestion from remote VLM service
+    # -------------------------------------------------
+    outfit_desc = get_outfit_suggestion_remote(
+        session["bg_path"],
+        preference_text=session.get("preference_text", ""),
+        feedback_text=feedback_text or convert_speech_to_text(feedback_audio)
+    )
+    
+    print(f"[image_edit_ep] Outfit suggestion: {outfit_desc}")
+
+    pref_text = session.get("preference_text", "")
+    fb_text = feedback_text or convert_speech_to_text(feedback_audio)
+    print(f"[image_edit_ep] Preference text: {pref_text}")
+    print(f"[image_edit_ep] Feedback text: {fb_text}")
+
+    ref_image_path = session.get("edited_path")
+    if ref_image_path is None:
+        raise HTTPException(status_code=400, detail="Session is missing edited image.")
+
+    print("[image_edit_ep] Applying feedback via Flux on existing edit...")
+    edit_result = edit_image_outfit_desc(
+        outfit_description=outfit_desc,
+        gender=session.get("gender", "male"),
+        crop_clothes=crop_clothes,
+        ref_image_path=ref_image_path
+    )
+
+    processed_image_path = edit_result.get("cropped_path") if crop_clothes else edit_result.get("edited_path")
+    print(f"[image_edit_ep] Processed image saved to: {processed_image_path}")
+
+    print("[image_edit_ep] Retrieving best matched clothes via vector DB (feedback)...")
+    scores = vector_db.search_by_image(processed_image_path, top_k=top_k)
+
+    # Update session with latest edit
+    session["edited_path"] = _as_optional_str(edit_result.get("edited_path"))
+    session["cropped_path"] = _as_optional_str(edit_result.get("cropped_path"))
+    session["preference_text"] = pref_text
+    RETRIEVAL_SESSIONS[session_id] = session
+
+    response = {
+        "method": "image-edit-flux/apply-feedback",
+        "session_id": session_id,
+        "edited_image_path": str(processed_image_path),
+        "count": min(top_k, len(scores)),
+        "results": [
+            {
+                "outfit_name": _extract_outfit_name(s.get("metadata")),
+                "score": s["score"],
+                "clothes_path": s.get("metadata"),
+            }
+            for s in scores[:top_k]
+        ],
+    }
+
+    return response
 
 @router.post("/image-edit/apply-feedback")
 def apply_feedback_image_edit(
@@ -231,7 +299,7 @@ def apply_feedback_image_edit(
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found. Start a new retrieval first.")
 
-    pref_text = session.get("preference_text", "") 
+    pref_text = session.get("preference_text", "")
     fb_text = feedback_text or convert_speech_to_text(feedback_audio)
     print(f"[image_edit_ep] Preference text: {pref_text}")
     print(f"[image_edit_ep] Feedback text: {fb_text}")
@@ -243,7 +311,7 @@ def apply_feedback_image_edit(
     ref_image_path = session.get("edited_path")
     if ref_image_path is None:
         raise HTTPException(status_code=400, detail="Session is missing edited image.")
-    
+
     print("[image_edit_ep] Applying feedback via GPT on existing edit...")
     edit_result = edit_image_scene_img(
         scene_input,

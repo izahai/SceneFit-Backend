@@ -21,8 +21,6 @@ class ImageEditModel(ABC):
         save_result=True,
         gender='male',
         crop_clothes=True,
-        preference_text: str | None = None,
-        feedback_text: str | None = None,
         ref_image_path: Path | None = None
     ):
         raise NotImplementedError("Subclasses must implement this method.")
@@ -33,12 +31,10 @@ class ImageEditFlux(ImageEditModel):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model  = Flux2KleinPipeline.from_pretrained("black-forest-labs/FLUX.2-klein-9B", torch_dtype=torch.bfloat16).to(self.device)
 
-    def _get_prompt(self, outfit_description: str, preference_text: str) -> str:
+    def _get_prompt(self, outfit_description: str) -> str:
         prompt = (
             "Change the outfit of this person into the outfit described as: "
             f"{outfit_description}. Do not change the background of the image, just change the outfit. "
-            "Consider these preferences: "
-            f"{preference_text}"
         )
         return prompt
     
@@ -46,7 +42,6 @@ class ImageEditFlux(ImageEditModel):
         self,
         outfit_description: str,
         gender='male',
-        preference_text: str | None = None,
         ref_image_path: Path | None = None
     ) -> Image.Image:
         
@@ -61,7 +56,7 @@ class ImageEditFlux(ImageEditModel):
         img = img.resize((512,512))
         output = self.model(
             image=img,
-            prompt = self._get_prompt(outfit_description, preference_text or ""),
+            prompt = self._get_prompt(outfit_description),
             height=1024,
             width=1024,
             num_inference_steps=30,

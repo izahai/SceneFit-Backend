@@ -195,18 +195,25 @@ def edit_image_outfit_desc(
     save_result=True,
     gender='male',
     crop_clothes=True,
-    preference_text: str | None = None,
     ref_image_path: Path | None = None,
     model_name='image_edit_flux'
 ):
     model = ModelRegistry.get(f"{model_name}")
 
+    # Store the reference image path for return
+    if not ref_image_path:
+        if gender == 'male':
+            used_ref_path = REF_IMAGE_PATH_MAN
+        elif gender == 'female':
+            used_ref_path = REF_IMAGE_PATH_WOMAN
+        else:
+            raise ValueError("Gender must be 'male' or 'female'")
+    else:
+        used_ref_path = Path(ref_image_path)
+
     edited_image = model.edit_outfit_desc(
         outfit_description=outfit_description,
-        # save_result=save_result,
         gender=gender,
-        # crop_clothes=crop_clothes,
-        preference_text=preference_text,
         ref_image_path=ref_image_path
     )
 
@@ -217,11 +224,18 @@ def edit_image_outfit_desc(
         edited_image=edited_image,
         cropped_image=cropped_image if crop_clothes else None
     )
-
+    
+    paths["ref_path"] = str(used_ref_path)
     return paths
     
 
-def get_outfit_suggestion_remote(bg_path: Path, verify_ssl: bool | None = None) -> str:
+def get_outfit_suggestion_remote(
+    bg_path: Path,
+    preference_text: str | None = None,
+    feedback_text: str | None = None,
+    verify_ssl: bool | None = None
+) -> str:
+    
     """Call remote VLM service to get outfit suggestion for a background image."""
     url = f"{VLM_BASE_URL}/api/v1/retrieval/vlm-suggest-outfit"
     mime_type, _ = mimetypes.guess_type(bg_path)
@@ -250,7 +264,12 @@ def get_outfit_suggestion_remote(bg_path: Path, verify_ssl: bool | None = None) 
         
         with open(bg_path, "rb") as fp:
             files = {"bg_image": (bg_path.name, fp, mime_type)}
-            return session.post(target_url, files=files, headers=headers, timeout=60, verify=verify_flag)
+            data = {}
+            if preference_text:
+                data["preference_text"] = preference_text
+            if feedback_text:
+                data["feedback_text"] = feedback_text
+            return session.post(target_url, files=files, data=data, headers=headers, timeout=60, verify=verify_flag)
 
     try:
         resp = _send(verify)
