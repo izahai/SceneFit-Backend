@@ -1,38 +1,73 @@
 methods:
-  method1:
-    name: "Method 1"
-    description: "First research method"
-    base_url: "https://your-ngrok-url-1.ngrok.io"
+  aesthetic:
+    name: "Aesthetic Scorer"
+    description: "Scores outfit aesthetics based on visual appeal"
+    base_url: "http://localhost:8000"
     endpoints:
-      generate: "/api/generate"
-      process: "/api/process"
+      retrieve: "/api/v1/retrieval/aesthetic"
       health: "/health"
     
-  method2:
-    name: "Method 2"
-    description: "Second research method"
-    base_url: "https://your-ngrok-url-2.ngrok.io"
+  image_edit:
+    name: "Image Edit Retrieval"
+    description: "Retrieves clothes using image editing and scene understanding"
+    base_url: "http://localhost:8000"
     endpoints:
-      generate: "/api/generate"
-      process: "/api/process"
+      retrieve: "/api/v1/retrieval/image-edit"
+      start_session: "/api/v1/retrieval/image-edit/start-session"
+      get_bg_images: "/api/v1/retrieval/image-edit/get-bg-images"
+      regenerate: "/api/v1/retrieval/image-edit/regenerate"
       health: "/health"
     
-  method3:
-    name: "Method 3"
-    description: "Third research method"
-    base_url: "https://your-ngrok-url-3.ngrok.io"
+  pe_clip:
+    name: "PE-CLIP Retrieval"
+    description: "PE-Core based image retrieval system"
+    base_url: "http://localhost:8000"
     endpoints:
-      generate: "/api/generate"
-      process: "/api/process"
+      retrieve: "/api/v1/retrieval/pe"
       health: "/health"
     
-  method4:
-    name: "Method 4"
-    description: "Fourth research method"
-    base_url: "https://your-ngrok-url-4.ngrok.io"
+  vlm:
+    name: "VLM Retrieval"
+    description: "Vision-Language Model based retrieval with tournament selection"
+    base_url: "http://localhost:8000"
     endpoints:
-      generate: "/api/generate"
-      process: "/api/process"
+      tournament: "/api/v1/retrieval/vlm-tournament"
+      direct: "/api/v1/retrieval/vlm-direct"
+      caption_bg: "/api/v1/retrieval/caption-bg"
+      generate_captions: "/api/v1/retrieval/generate-clothes-captions"
+      health: "/health"
+    
+  asr:
+    name: "Speech Recognition"
+    description: "Automatic Speech Recognition for audio input"
+    base_url: "http://localhost:8000"
+    endpoints:
+      transcribe: "/api/v1/asr/transcribe"
+      stream: "/api/v1/asr/stream"
+      health: "/health"
+    
+  mmemb:
+    name: "Multimodal Embeddings"
+    description: "Multimodal embedding-based retrieval"
+    base_url: "http://localhost:8000"
+    endpoints:
+      retrieve: "/api/v1/retrieval/mmemb"
+      health: "/health"
+    
+  neg_pe_clip:
+    name: "Negative PE-CLIP"
+    description: "PE-CLIP with negative prompt handling"
+    base_url: "http://localhost:8000"
+    endpoints:
+      retrieve: "/api/v1/retrieval/neg-pe"
+      health: "/health"
+    
+  diffusion:
+    name: "Diffusion Model"
+    description: "Image generation using diffusion models"
+    base_url: "http://localhost:8000"
+    endpoints:
+      generate: "/api/v1/retrieval/diffusion"
       health: "/health"
 
 # VLM Evaluator Configuration

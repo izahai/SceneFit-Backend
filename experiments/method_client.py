@@ -123,9 +123,42 @@ class MethodClient:
                         f"{self.retry_attempts} attempts: {str(e)}"
                     )
     
+    def retrieve(
+        self, 
+        image_file: str = None,
+        image_data: bytes = None,
+        top_k: int = 5,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Call the retrieve endpoint for retrieval-based methods.
+        
+        Args:
+            image_file: Path to image file
+            image_data: Raw image bytes
+            top_k: Number of top results to return
+            **kwargs: Additional parameters (gender, crop_clothes, etc.)
+            
+        Returns:
+            Retrieval results
+        """
+        files = None
+        if image_file:
+            files = {"image": open(image_file, "rb")}
+        elif image_data:
+            files = {"image": ("image.jpg", image_data)}
+        
+        data = {"top_k": top_k, **kwargs}
+        
+        try:
+            return self._make_request("retrieve", method="POST", data=data, files=files)
+        finally:
+            if files and image_file:
+                files["image"].close()
+    
     def generate(self, input_data: Dict[str, Any], **kwargs) -> Dict[str, Any]:
         """
-        Call the generate endpoint.
+        Call the generate endpoint (for diffusion models).
         
         Args:
             input_data: Input data for generation
@@ -136,18 +169,82 @@ class MethodClient:
         """
         return self._make_request("generate", method="POST", data=input_data, **kwargs)
     
-    def process(self, input_data: Dict[str, Any], **kwargs) -> Dict[str, Any]:
+    def transcribe(
+        self, 
+        audio_file: str = None, 
+        audio_data: bytes = None,
+        **kwargs
+    ) -> Dict[str, Any]:
         """
-        Call the process endpoint.
+        Call the transcribe endpoint for ASR.
         
         Args:
-            input_data: Input data for processing
+            audio_file: Path to audio file
+            audio_data: Raw audio bytes
             **kwargs: Additional parameters
             
         Returns:
-            Processing result
+            Transcription result
         """
-        return self._make_request("process", method="POST", data=input_data, **kwargs)
+        files = None
+        if audio_file:
+            files = {"file": open(audio_file, "rb")}
+        elif audio_data:
+            files = {"file": ("audio.wav", audio_data)}
+        
+        try:
+            return self._make_request("transcribe", method="POST", files=files, **kwargs)
+        finally:
+            if files and audio_file:
+                files["file"].close()
+    
+    def tournament(self, image_file: str = None, image_data: bytes = None, **kwargs) -> Dict[str, Any]:
+        """
+        Call the VLM tournament endpoint.
+        
+        Args:
+            image_file: Path to image file
+            image_data: Raw image bytes
+            **kwargs: Additional parameters
+            
+        Returns:
+            Tournament result
+        """
+        files = None
+        if image_file:
+            files = {"image": open(image_file, "rb")}
+        elif image_data:
+            files = {"image": ("image.jpg", image_data)}
+        
+        try:
+            return self._make_request("tournament", method="POST", files=files, **kwargs)
+        finally:
+            if files and image_file:
+                files["file"].close()
+    
+    def direct(self, image_file: str = None, image_data: bytes = None, **kwargs) -> Dict[str, Any]:
+        """
+        Call the VLM direct endpoint.
+        
+        Args:
+            image_file: Path to image file
+            image_data: Raw image bytes
+            **kwargs: Additional parameters
+            
+        Returns:
+            Direct VLM result
+        """
+        files = None
+        if image_file:
+            files = {"image": open(image_file, "rb")}
+        elif image_data:
+            files = {"image": ("image.jpg", image_data)}
+        
+        try:
+            return self._make_request("direct", method="POST", files=files, **kwargs)
+        finally:
+            if files and image_file:
+                files["file"].close()
     
     def health_check(self) -> bool:
         """
@@ -225,15 +322,23 @@ class MethodOrchestrator:
     def run_on_all_methods(
         self,
         endpoint: str,
-        input_data: Dict[str, Any],
+        input_data: Dict[str, Any] = None,
+        image_file: str = None,
+        image_data: bytes = None,
+        audio_file: str = None,
+        audio_data: bytes = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
         Run the same input on all methods.
         
         Args:
-            endpoint: Endpoint name ('generate' or 'process')
+            endpoint: Endpoint name ('retrieve', 'generate', 'transcribe', etc.)
             input_data: Input data to send to all methods
+            image_file: Path to image file (for retrieval methods)
+            image_data: Raw image bytes (for retrieval methods)
+            audio_file: Path to audio file (for ASR)
+            audio_data: Raw audio bytes (for ASR)
             **kwargs: Additional parameters
             
         Returns:
@@ -243,10 +348,32 @@ class MethodOrchestrator:
         
         for name, client in self.clients.items():
             try:
-                if endpoint == "generate":
-                    results[name] = client.generate(input_data, **kwargs)
-                elif endpoint == "process":
-                    results[name] = client.process(input_data, **kwargs)
+                if endpoint == "retrieve":
+                    results[name] = client.retrieve(
+                        image_file=image_file,
+                        image_data=image_data,
+                        **kwargs
+                    )
+                elif endpoint == "generate":
+                    results[name] = client.generate(input_data or {}, **kwargs)
+                elif endpoint == "transcribe":
+                    results[name] = client.transcribe(
+                        audio_file=audio_file,
+                        audio_data=audio_data,
+                        **kwargs
+                    )
+                elif endpoint == "tournament":
+                    results[name] = client.tournament(
+                        image_file=image_file,
+                        image_data=image_data,
+                        **kwargs
+                    )
+                elif endpoint == "direct":
+                    results[name] = client.direct(
+                        image_file=image_file,
+                        image_data=image_data,
+                        **kwargs
+                    )
                 else:
                     raise ValueError(f"Unsupported endpoint: {endpoint}")
             except Exception as e:
