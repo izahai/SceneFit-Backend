@@ -47,7 +47,7 @@ class ModelRegistry:
         if name == "jina-v4":
             model = MmEmbModel()
         elif name == "pe":
-            model = PEClipModel()
+            model = PEClipModel(device="cpu")
         elif name == "vlm":
             model = VLModel()
         elif name == "pe_clip_matcher":

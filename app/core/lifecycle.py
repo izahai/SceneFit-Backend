@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
     
     vector_db = VectorDatabase(
         embedding_model="pe",
-        use_gpu=True,  # set False if you prefer CPU
+        use_gpu=False,  # set False if you prefer CPU
         index_path="app/data/indexes/pe_clothes.index",            # optional explicit paths
         metadata_path="app/data/indexes/pe_clothes.index.meta.json",
         data_dir="app/data/2d",                            # where to build from if missing

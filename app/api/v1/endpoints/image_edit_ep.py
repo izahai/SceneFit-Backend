@@ -43,9 +43,6 @@ def _save_upload(file: UploadFile, directory: Path) -> Path:
         f.write(file.file.read())
     return out_path
 
-
-
-
 @router.post("/image-edit")
 def retrieve_clothes_image_edit(
     image: UploadFile = File(...),

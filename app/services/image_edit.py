@@ -30,6 +30,7 @@ API_KEY = os.getenv("IMAGEROUTER_API_KEY")
 URL = "https://api.imagerouter.io/v1/openai/images/edits"
 VLM_BASE_URL = os.getenv("VLM_BASE_URL", "https://nondepressed-semipneumatically-eveline.ngrok-free.dev")
 VLM_VERIFY_SSL = os.getenv("VLM_VERIFY_SSL", "true").lower() != "false"
+VECTOR_DB_BASE_URL = os.getenv("VECTOR_DB_BASE_URL", "https://nondepressed-semipneumatically-eveline.ngrok-free.dev")
 
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}"
@@ -209,12 +210,12 @@ def edit_image_outfit_desc(
         else:
             raise ValueError("Gender must be 'male' or 'female'")
     else:
-        used_ref_path = Path(ref_image_path)
+        used_ref_path = Path(ref_image_path) if isinstance(ref_image_path, str) else ref_image_path
 
     edited_image = model.edit_outfit_desc(
         outfit_description=outfit_description,
         gender=gender,
-        ref_image_path=ref_image_path
+        ref_image_path=used_ref_path
     )
 
     if crop_clothes:
@@ -230,13 +231,16 @@ def edit_image_outfit_desc(
     
 
 def get_outfit_suggestion_remote(
-    bg_path: Path,
+    bg_path: Path | str,
     preference_text: str | None = None,
     feedback_text: str | None = None,
     verify_ssl: bool | None = None
 ) -> str:
     
     """Call remote VLM service to get outfit suggestion for a background image."""
+    # Ensure bg_path is a Path object
+    bg_path = Path(bg_path) if isinstance(bg_path, str) else bg_path
+    
     url = f"{VLM_BASE_URL}/api/v1/retrieval/vlm-suggest-outfit"
     mime_type, _ = mimetypes.guess_type(bg_path)
     mime_type = mime_type or "image/png"
@@ -300,6 +304,31 @@ def get_outfit_suggestion_remote(
 
     return outfit_desc
 
+def retrieve_from_edited_image_remote(
+    processed_image: Image.Image,
+    top_k: int = 5,
+):
+
+    img_byte_arr = BytesIO()
+    processed_image.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+
+    # Request from vector database endpoint
+    vector_db_url = VECTOR_DB_BASE_URL
+    url = f"{vector_db_url}/api/v1/retrieval/vector_db"
+    
+    files = {"image": ("cropped_image.png", img_byte_arr, "image/png")}
+    data = {"top_k": top_k}
+    
+    try:
+        response = requests.post(url, files=files, data=data, timeout=30)
+        response.raise_for_status()
+        scores = response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Vector DB service error: {e}") from e
+
+    return scores
+
 # -----------------------------------------------------
 # For Debugging: only run when executed directly
 # -----------------------------------------------------
@@ -314,3 +343,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
