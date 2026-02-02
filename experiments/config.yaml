@@ -1,8 +1,8 @@
 methods:
   method1:
-    name: "Method 1"
+    name: "VLM Faiss Composed Retrieval"
     description: "First research method"
-    base_url: "https://your-ngrok-url-1.ngrok.io"
+    base_url: "https://50540cf4ed95.ngrok-free.app"
     endpoints:
       generate: "/api/generate"
       process: "/api/process"
@@ -50,7 +50,7 @@ vlm_evaluators:
     temperature: 0.0
     
   gemini_vision:
-    model: "gemini-pro-vision"
+    model: "gemini-2.5-flash"
     api_type: "google"
     max_tokens: 1000
     temperature: 0.0
