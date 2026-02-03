@@ -143,7 +143,8 @@ class VLModel:
         output = self._generate(messages)
 
         return " ".join(output.strip().split())
-
+    def load(self):
+        return None
     def choose_best_clothes(
         self,
         background_caption: str,
