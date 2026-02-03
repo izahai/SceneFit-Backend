@@ -3,7 +3,7 @@
 
 retrieval_methods:
   clip:
-    url: "http://localhost:8001"
+    url: "https://50540cf4ed95.ngrok-free.app"
     endpoint: "/api/v1/retrieval"
     description: "CLIP-based vector database retrieval"
   
@@ -13,7 +13,7 @@ retrieval_methods:
     description: "Image edit model retrieval"
   
   vlm:
-    url: "http://localhost:8003"
+    url: "https://triadelphous-supersaintly-millicent.ngrok-free.dev/"
     endpoint: "/api/v1/retrieval"
     description: "Vision-Language Model retrieval"
   
