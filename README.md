@@ -141,7 +141,7 @@ Example response:
    }],
    "vlm": [],
    "clip": [],
-   "aes": []
+   "aesthetic": []
 }
 ```
 

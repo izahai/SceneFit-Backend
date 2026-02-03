@@ -25,7 +25,7 @@ def retrieve_all_methods(
     aes_results = get_aes_results(image, top_k)
     
     return {
-        "image_edit": image_edit_results,
+        "imageEdit": image_edit_results,
         "vlm": vlm_results,
         "clip": clip_results,
         "aesthetic": aes_results,

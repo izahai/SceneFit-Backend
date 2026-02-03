@@ -18,7 +18,7 @@ retrieval_methods:
     description: "Vision-Language Model retrieval"
   
   aesthetic:
-    url: "http://localhost:8004"
+    url: "https://ellyn-obcordate-francisca.ngrok-free.dev/"
     endpoint: "/api/v1/retrieval/aesthetic"
     description: "Aesthetic predictor retrieval"
 
