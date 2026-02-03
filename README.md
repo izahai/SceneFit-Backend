@@ -137,7 +137,7 @@ Example response:
 {
    "image-edit": [{
       "name": "name1",
-      "score": "0.24"
+      "score": 0.24
    }],
    "vlm": [],
    "clip": [],
