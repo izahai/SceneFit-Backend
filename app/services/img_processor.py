@@ -62,12 +62,18 @@ def compose_2d_on_background(
     scale: float = 1.0,
     return_format: str = "pil",  # "pil" | "numpy"
     output_dir: str = "app/outputs/composed",
+    offset: int = 0,
+    limit: int | None = None,
 ) -> List[Tuple[str, Image.Image]]:
     """
     Paste foreground images centered on the background image.
     Uses fg_files when provided, otherwise loads from clothes_json.
     Saves all composed images into outputs/composed using the figure name.
     Returns (filename, image).
+    
+    Args:
+        offset: Skip first N files (for batching)
+        limit: Process at most N files (for batching)
     """
 
     bg_original = Image.open(bg_path).convert("RGBA")
@@ -98,6 +104,16 @@ def compose_2d_on_background(
         fg_files = [str(p) for p in fg_files]
         if not fg_files:
             raise RuntimeError("fg_files is empty")
+
+    # -------------------------------------------------
+    # Apply batching (offset/limit)
+    # -------------------------------------------------
+    total_files = len(fg_files)
+    end_idx = offset + limit if limit is not None else total_files
+    fg_files = fg_files[offset:end_idx]
+
+    if not fg_files:
+        return []  # No files in this batch
 
     # -------------------------------------------------
     # Process each foreground image
