@@ -177,7 +177,7 @@ class PEClipMatcher:
 
             results = [
                 {
-                    "name_clothes": self.faiss_meta["filenames"][idx],
+                    "outfit_name": self.faiss_meta["filenames"][idx],
                     "similarity": score,
                 }
                 for idx, score in sorted_items[:top_k]

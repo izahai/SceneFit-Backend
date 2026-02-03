@@ -2,7 +2,7 @@ methods:
   method1:
     name: "VLM Faiss Composed Retrieval"
     description: "VLM-based retrieval with Faiss indexing and Reranking"
-    base_url: "https://50540cf4ed95.ngrok-free.app"
+    base_url: "https://adriane-unsensualized-squeakily.ngrok-free.dev/"
     endpoints:
       vlm_composed_retrieval: "api/v1/retrieval/vlm-faiss-composed-retrieval"
       health: "/health"
