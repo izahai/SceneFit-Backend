@@ -61,25 +61,25 @@ async def lifespan(app: FastAPI):
     # )
 
     # ---------- Flux ----------
-    print("[START] Loading Flux Image Edit Model ...")
-    ModelRegistry.register(
-        name="image_edit_flux",
-        model=ImageEditFlux(),
-    )
-    ModelRegistry.get("image_edit_flux")
+    # print("[START] Loading Flux Image Edit Model ...")
+    # ModelRegistry.register(
+    #     name="image_edit_flux",
+    #     model=ImageEditFlux(),
+    # )
+    # ModelRegistry.get("image_edit_flux")
 
     # ---------- Vector DB ----------
     # global vector_db
     
-    vector_db = VectorDatabase(
-        embedding_model="pe",
-        use_gpu=False,  # set False if you prefer CPU
-        index_path="app/data/indexes/pe_clothes.index",            # optional explicit paths
-        metadata_path="app/data/indexes/pe_clothes.index.meta.json",
-        data_dir="app/data/2d",                            # where to build from if missing
-        auto_prepare=True,                                 # triggers ensure_ready()
-    )
-    app.state.vector_db = vector_db
+    # vector_db = VectorDatabase(
+    #     embedding_model="pe",
+    #     use_gpu=False,  # set False if you prefer CPU
+    #     index_path="app/data/indexes/pe_clothes.index",            # optional explicit paths
+    #     metadata_path="app/data/indexes/pe_clothes.index.meta.json",
+    #     data_dir="app/data/2d",                            # where to build from if missing
+    #     auto_prepare=True,                                 # triggers ensure_ready()
+    # )
+    # app.state.vector_db = vector_db
     print("[START] Models loaded")
     print("[START] Backend started")
 
