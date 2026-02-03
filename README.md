@@ -119,6 +119,34 @@ Example response (vlm-faiss-composed-retrieval):
 }
 ```
 
+**All methods API**
+- Endpoint: `POST /api/v1/retrieval/all-methods`
+
+- Request: `multipart/form-data`
+
+```jsonc
+{
+  "image": "<file>",          // required
+  "top_k": 5,                  // optional (default 5), int
+}
+```
+
+Example response:
+
+```jsonc
+{
+   "image-edit": [{
+      "name": "name1",
+      "score": 0.24
+   }],
+   "vlm": [],
+   "clip": [],
+   "aes": []
+}
+```
+
+
+
 **Contributor Guide (add a new retrieval endpoint)**
 - Expose as `POST /api/v1/retrieval/<method-name>`; accept `image` plus `top_k` and method-specific knobs.
 - Return the shared envelope `{ method, count, results }` with required result keys `outfit_name`, `outfit_path`, `score`. Add optional fields clearly (e.g., captions, paths) and gate them with flags like `return_metadata`.

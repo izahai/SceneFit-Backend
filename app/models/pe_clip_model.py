@@ -48,37 +48,22 @@ class PEClipModel:
             self.model.context_length
         )
 
-        # -------------------------
-        # Load prompts & encode once
-        # -------------------------
-        self.prompts = load_prompts("outfit_match")
-        self.clothing_emb = self.encode_text("clothing")
-        self.env_emb = self.encode_text("background")
-        raw_prompt_embeddings = self.encode_text(self.prompts)
+        # # -------------------------
+        # # Load prompts & encode once
+        # # -------------------------
+        # self.prompts = load_prompts("outfit_match")
+        # self.clothing_emb = self.encode_text("clothing")
+        # self.env_emb = self.encode_text("background")
+        # raw_prompt_embeddings = self.encode_text(self.prompts)
 
-        self.prompt_embeddings = (
-            raw_prompt_embeddings
-            - self.clothing_emb.unsqueeze(0)
-            - self.env_emb.unsqueeze(0)
-        )
+        # self.prompt_embeddings = (
+        #     raw_prompt_embeddings
+        #     - self.clothing_emb.unsqueeze(0)
+        #     - self.env_emb.unsqueeze(0)
+        # )
 
-        self.background_images = load_images_from_folder("app/data/bg")
-        self.clothing_images = load_images_from_folder("app/data/2d")
-
-        self.bg_subspace = self.build_image_subspace(
-            images=self.background_images,
-            variance_ratio=0.9,
-        )
-
-        raw_clothes_subspace = self.build_image_subspace(
-            images=self.clothing_images,
-            variance_ratio=0.9,
-        )
-
-        self.clothes_subspace = orthogonalize_subspaces(
-            primary=self.bg_subspace,
-            secondary=raw_clothes_subspace,
-        )
+        # self.background_images = load_images_from_folder("app/data/bg")
+        # self.clothing_images = load_images_from_folder("app/data/2d")
 
 
     # -------------------------------------------------

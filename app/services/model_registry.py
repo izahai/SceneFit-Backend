@@ -12,6 +12,7 @@ from app.models.diffusion_model import DiffusionModel
 from app.models.negative_generator import NegativePEModel
 from app.models.asr_model import ASRModel
 from app.models.text_macher_model import TextMatcherModel
+from app.models.image_edit_model import ImageEditFlux
 
 class ModelRegistry:
     _models: Dict[str, object] = {}
@@ -46,7 +47,7 @@ class ModelRegistry:
         if name == "jina-v4":
             model = MmEmbModel()
         elif name == "pe":
-            model = PEClipModel()
+            model = PEClipModel(device="cpu")
         elif name == "vlm":
             model = VLModel()
         elif name == "pe_clip_matcher":
@@ -62,12 +63,15 @@ class ModelRegistry:
         elif name == "qwen_reranker":
             model = Qwen3VLRerankerWrapper()
         
+        
 
         #model.load()
         elif name == "asr":
             model = ASRModel()
         elif name == "text_matcher":
             model = TextMatcherModel()
+        elif name == "image_edit_flux":
+            model = ImageEditFlux()
         else:
             raise ValueError(f"Unknown model: {name}")
 
