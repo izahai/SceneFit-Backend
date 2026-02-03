@@ -36,7 +36,7 @@ def _get_available_outfit_names():
         return _OUTFIT_NAMES_CACHE
     
     # Path to 2d images directory
-    data_2d_path = Path(__file__).parent.parent / "data" / "data" / "2d"
+    data_2d_path = Path(__file__).parent.parent / "data" / "2d"
     
     outfit_names = []
     if data_2d_path.exists():
