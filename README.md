@@ -135,7 +135,7 @@ Example response:
 
 ```jsonc
 {
-   "image-edit": [{
+   "imageEdit": [{
       "name": "name1",
       "score": 0.24
    }],
