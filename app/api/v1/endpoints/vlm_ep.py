@@ -3,7 +3,7 @@
 import json
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Body
+from fastapi import APIRouter, UploadFile, File, Body, Form
 from PIL import Image
 import time
 import torch
@@ -431,4 +431,23 @@ def get_clothes_by_feedback(payload: dict = Body(...)):
         "query": descriptions,
         "feedback": fb_text,
         "results": results,
+    }
+
+
+@router.post("/vlm-suggest-outfit")
+def suggest_outfit(
+    bg_image: UploadFile = File(...),
+    preference_text: str | None = Form(None),
+    feedback_text: str | None = Form(None)
+):
+    bg_path = _save_bg_upload(bg_image)
+
+    vlm = ModelRegistry.get("vlm")
+
+    outfit_desc = vlm.suggest_outfit_from_bg(str(bg_path), preference_text=preference_text, feedback_text=feedback_text)
+    print(f"[vlm_ep] Outfit suggestion: {outfit_desc}")
+
+    return {
+        "bg_image": bg_image.filename,
+        "outfit_description": outfit_desc,
     }

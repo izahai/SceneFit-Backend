@@ -17,8 +17,8 @@ _IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
 
 def crop_clothes_region(
     image: Image.Image,
-    bottom_fraction: float = 0.70,
-    horizontal_fraction: float = 0.60,
+    bottom_fraction: float = 0.65,
+    horizontal_fraction: float = 0.50,
     keep_square: bool = False,
 ) -> Image.Image:
     """
