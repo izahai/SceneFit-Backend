@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
     ModelRegistry.get("image_edit_flux")
 
     # ---------- Vector DB ----------
-    global vector_db
+    # global vector_db
     
     vector_db = VectorDatabase(
         embedding_model="pe",

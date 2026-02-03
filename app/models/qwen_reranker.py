@@ -62,7 +62,7 @@ class Qwen3VLRerankerWrapper:
 
         # Attach scores back
         for c, s in zip(candidates, scores):
-            c["rerank_score"] = float(s)
+            c["score"] = float(s)
 
-        candidates.sort(key=lambda x: x["rerank_score"], reverse=True)
+        candidates.sort(key=lambda x: x["score"], reverse=True)
         return candidates

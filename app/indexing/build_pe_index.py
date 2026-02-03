@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 from pathlib import Path
 from PIL import Image
+from tqdm import trange
 
 from app.models.pe_clip_matcher import PEClipMatcher
 
@@ -13,9 +14,10 @@ from app.models.pe_clip_matcher import PEClipMatcher
 @torch.no_grad()
 def main():
     device = "cuda"
+    batch_size = 32   # reduce to 16 if GPU is small
+
     clothes_dir = Path("app/data/2d")
     output_dir = Path("app/data/faiss")
-
     output_dir.mkdir(parents=True, exist_ok=True)
 
     matcher = PEClipMatcher(device=device, load_faiss=False)
@@ -27,11 +29,25 @@ def main():
 
     assert len(image_paths) > 0, "No clothing images found."
 
-    # -------- SINGLE PASS IMAGE ENCODING --------
-    images = [Image.open(p).convert("RGB") for p in image_paths]
-    image_embs = matcher.encode_image(images)  # (N, D)
+    # -------- BATCHED IMAGE ENCODING --------
+    all_embs = []
 
-    image_embs = image_embs.cpu().numpy().astype("float32")
+    for i in trange(0, len(image_paths), batch_size, desc="Encoding images"):
+        batch_paths = image_paths[i : i + batch_size]
+
+        images = []
+        for p in batch_paths:
+            with Image.open(p) as img:
+                images.append(img.convert("RGB"))
+
+        embs = matcher.encode_image(images)   # (B, D)
+        all_embs.append(embs.cpu())
+
+    image_embs = torch.cat(all_embs, dim=0).numpy().astype("float32")
+
+    # -------- NORMALIZE FOR COSINE SIMILARITY --------
+    image_embs /= np.linalg.norm(image_embs, axis=1, keepdims=True)
+
     dim = image_embs.shape[1]
 
     # -------- FAISS INDEX --------

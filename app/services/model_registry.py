@@ -63,6 +63,7 @@ class ModelRegistry:
         elif name == "qwen_reranker":
             model = Qwen3VLRerankerWrapper()
         
+        
 
         #model.load()
         elif name == "asr":
