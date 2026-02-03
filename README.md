@@ -122,17 +122,26 @@ Example response (vlm-faiss-composed-retrieval):
 **All methods API**
 - Endpoint: `POST /api/v1/retrieval/all-methods`
 
+- Request: `multipart/form-data`
+
+```jsonc
+{
+  "image": "<file>",          // required
+  "top_k": 5,                  // optional (default 5), int
+}
+```
+
 Example response:
 
-```json
+```jsonc
 {
-    "image-edit": [{
-        "name": "name1",
-        "score": "0.24"
-    }],
-    "vlm": [],
-    "clip": [],
-    "aes": []
+   "image-edit": [{
+      "name": "name1",
+      "score": "0.24"
+   }],
+   "vlm": [],
+   "clip": [],
+   "aes": []
 }
 ```
 
