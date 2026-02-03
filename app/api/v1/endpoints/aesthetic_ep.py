@@ -26,6 +26,7 @@ def score_outfits(rg_head, bg_path: Path, top_k: int = 5):
         fg_dir="app/data/2d",
         return_format="pil",
     )
+    print(f"[AESTHETIC] Scoring {len(items)} outfits ...")
     scores = rg_head.score_images(items)
 
     return {

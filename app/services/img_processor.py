@@ -77,14 +77,23 @@ def compose_2d_on_background(
     os.makedirs(output_dir, exist_ok=True)
 
     # -------------------------------------------------
-    # Load fg list
+    # Load fg list — use all images in fg_dir when not provided
     # -------------------------------------------------
     if fg_files is None:
-        with open(clothes_json, "r") as f:
-            fg_files = json.load(f)
+        if not os.path.isdir(fg_dir):
+            raise RuntimeError(f"fg_dir does not exist: {fg_dir}")
 
+        all_files = sorted(os.listdir(fg_dir))
+        IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff", ".gif")
+        fg_files = [f for f in all_files if f.lower().endswith(IMAGE_EXTS)]
+
+        # If none found in directory, fall back to clothes_json (if exists)
         if not fg_files:
-            raise RuntimeError("clothes.json is empty")
+            if os.path.isfile(clothes_json):
+                with open(clothes_json, "r") as f:
+                    fg_files = json.load(f)
+            if not fg_files:
+                raise RuntimeError(f"No image files found in {fg_dir} and clothes.json is empty")
     else:
         fg_files = [str(p) for p in fg_files]
         if not fg_files:
