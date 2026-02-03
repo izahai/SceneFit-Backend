@@ -200,7 +200,7 @@ class PEClipMatcher:
 
         results = [
             {
-                "name_clothes": names[i],
+                "outfit_name": names[i],
                 "similarity": float(final_sims[i]),
             }
             for i in range(len(names))
@@ -229,7 +229,7 @@ class PEClipMatcher:
 
         results = [
             {
-                "name_clothes": Path(names[i]).stem,
+                "outfit_name": Path(names[i]).stem,
                 "similarity": float(sims[i]),
             }
             for i in range(len(names))
