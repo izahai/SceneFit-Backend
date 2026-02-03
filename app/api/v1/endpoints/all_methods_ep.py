@@ -19,10 +19,10 @@ def retrieve_all_methods(
     }
     """
     
-    image_edit_results = get_image_edit_results(image, top_k)
-    vlm_results = get_vlm_results(image, top_k)
-    clip_results = get_clip_results(image, top_k)
-    aes_results = get_aes_results(image, top_k)
+    image_edit_results = get_image_edit_results(image, top_k, mock=True)
+    vlm_results = get_vlm_results(image, top_k, mock=True)
+    clip_results = get_clip_results(image, top_k, mock=True)
+    aes_results = get_aes_results(image, top_k, mock=False)
     
     return {
         "imageEdit": image_edit_results,

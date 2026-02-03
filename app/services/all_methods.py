@@ -19,7 +19,7 @@ TIMEOUT = config.get("timeout", 60)
 RETRY_CONFIG = config.get("retry", {"max_attempts": 3, "delay_seconds": 1})
 
 # Mock mode flag - set to True to use mock data instead of real API calls
-USE_MOCK_DATA = True
+USE_MOCK_DATA = False
 
 # Cache for outfit names to avoid reading directory multiple times
 _OUTFIT_NAMES_CACHE = None
@@ -166,37 +166,37 @@ def _make_request(method_name: str, image: UploadFile, top_k: int):
         )
 
 
-def get_clip_results(image: UploadFile, top_k: int):
+def get_clip_results(image: UploadFile, top_k: int, mock=True):
     """
     Retrieve using naive CLIP embeddings and vector database.
     """
-    if USE_MOCK_DATA:
+    if mock:
         return generate_mock_results(top_k, "clip")
     return _make_request("clip", image, top_k)
 
 
-def get_image_edit_results(image: UploadFile, top_k: int):
+def get_image_edit_results(image: UploadFile, top_k: int, mock=True):
     """
     Retrieve using image edit model.
     """
-    if USE_MOCK_DATA:
+    if mock:
         return generate_mock_results(top_k, "image_edit")
     return _make_request("image_edit", image, top_k)
 
 
-def get_vlm_results(image: UploadFile, top_k: int):
+def get_vlm_results(image: UploadFile, top_k: int, mock=True):
     """
     Retrieve using Vision-Language Model.
     """
-    if USE_MOCK_DATA:
+    if mock:
         return generate_mock_results(top_k, "vlm")
     return _make_request("vlm", image, top_k)
 
 
-def get_aes_results(image: UploadFile, top_k: int):
+def get_aes_results(image: UploadFile, top_k: int, mock=True):
     """
     Retrieve using aesthetic predictor.
     """
-    if USE_MOCK_DATA:
+    if mock:
         return generate_mock_results(top_k, "aesthetic")
     return _make_request("aesthetic", image, top_k)
