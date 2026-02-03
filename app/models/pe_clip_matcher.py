@@ -135,79 +135,128 @@ class PEClipMatcher:
     @torch.no_grad()
     def match_clothes(
         self,
-        descriptions: List[str] | None = None,
-        query_emb: torch.Tensor = None,
-        clothes: List[Tuple[str, Image.Image]] | None = None,
+        descriptions: list[str] | None = None,
+        query_emb: torch.Tensor | None = None,
+        clothes: list[tuple[str, Image.Image]] | None = None,
         top_k: int | None = None,
+        lambda_mmr: float = 0.65,
+        candidate_mult: int = 5,
     ):
         """
-        If FAISS is loaded:
-            uses FAISS (new method)
-        Else:
-            falls back to brute-force (original baseline)
+        FAISS-based retrieval with MMR diversity.
+        Does NOT require stored embeddings.
         """
+
         if query_emb is None:
             query_emb = self._build_query_embedding(descriptions)
 
-        # ---------- FAISS PATH ----------
         k = top_k or 10
+        candidate_k = k * candidate_mult
 
-    # ---------- FAISS PATH ----------
+        # =====================================================
+        # FAISS PATH
+        # =====================================================
         if self.faiss_index is not None:
             query_np = query_emb.cpu().numpy().astype("float32")
 
-            # scores, indices: [N, k]
-            scores, indices = self.faiss_index.search(query_np, k)
+            scores, indices = self.faiss_index.search(query_np, candidate_k)
 
-            # aggregate by max similarity per index
+            # aggregate max similarity per clothing index
             best_scores = {}
-
             for qi in range(scores.shape[0]):
                 for score, idx in zip(scores[qi], indices[qi]):
                     score = float(score)
                     if idx not in best_scores or score > best_scores[idx]:
                         best_scores[idx] = score
 
-            # sort by similarity
+            # sort by relevance and keep top candidates
             sorted_items = sorted(
                 best_scores.items(),
                 key=lambda x: x[1],
                 reverse=True
+            )[:candidate_k]
+
+            cand_indices = [idx for idx, _ in sorted_items]
+            cand_scores = torch.tensor(
+                [score for _, score in sorted_items],
+                device=query_emb.device
             )
 
-            results = [
-                {
-                    "name_clothes": self.faiss_meta["filenames"][idx],
-                    "similarity": score,
-                }
-                for idx, score in sorted_items[:top_k]
+            # 🔥 re-encode ONLY candidate images
+            cand_images = [
+                Image.open(self.faiss_meta["filenames"][idx]).convert("RGB")
+                for idx in cand_indices
             ]
+            cand_embs = self.encode_image(cand_images)
+            cand_embs = F.normalize(cand_embs, dim=-1)
 
-            return results
+        # =====================================================
+        # BRUTE-FORCE PATH
+        # =====================================================
+        else:
+            assert clothes is not None, "Clothes images required for brute-force."
 
-        # ---------- BRUTE-FORCE PATH ----------
-        assert clothes is not None, "Clothes images required for brute-force."
+            names, images = zip(*clothes)
+            image_embs = self.encode_image(list(images))
+            image_embs = F.normalize(image_embs, dim=-1)
 
-        names, images = zip(*clothes)
-        image_embs = self.encode_image(list(images))
-        image_embs = F.normalize(image_embs, dim=-1)
+            sims = image_embs @ query_emb.T
+            cand_scores = sims.max(dim=1).values
 
-        # sims: [M, N]
-        sims = image_embs @ query_emb.T
+            top_vals, top_idx = torch.topk(
+                cand_scores, min(candidate_k, len(cand_scores))
+            )
 
-        # MAX aggregation over queries → [M]
-        final_sims = sims.max(dim=1).values
+            cand_scores = top_vals
+            cand_embs = image_embs[top_idx]
+            cand_indices = top_idx.tolist()
 
-        results = [
-            {
-                "outfit_name": names[i],
-                "similarity": float(final_sims[i]),
-            }
-            for i in range(len(names))
-        ]
+        # =====================================================
+        # MMR SELECTION
+        # =====================================================
+        selected_embs = []
+        selected_ids = []
 
-        results.sort(key=lambda x: x["similarity"], reverse=True)
-        return results[:top_k] if top_k else results
+        while len(selected_ids) < min(k, len(cand_indices)):
+            mmr_scores = []
+
+            for i in range(len(cand_indices)):
+                if i in selected_ids:
+                    mmr_scores.append(-1e9)
+                    continue
+
+                relevance = cand_scores[i]
+
+                if not selected_embs:
+                    diversity_penalty = 0.0
+                else:
+                    sims = cand_embs[i] @ torch.stack(selected_embs).T
+                    diversity_penalty = sims.max().item()
+
+                mmr = lambda_mmr * relevance - (1 - lambda_mmr) * diversity_penalty
+                mmr_scores.append(mmr)
+
+            best = int(torch.tensor(mmr_scores).argmax())
+            selected_ids.append(best)
+            selected_embs.append(cand_embs[best])
+
+        # =====================================================
+        # OUTPUT
+        # =====================================================
+        results = []
+        for i in selected_ids:
+            idx = cand_indices[i]
+            results.append({
+                "name_clothes": (
+                    self.faiss_meta["filenames"][idx]
+                    if self.faiss_index is not None
+                    else names[idx]
+                ),
+                "similarity": float(cand_scores[i]),
+            })
+
+        return results
+
 
     # -------------------------------------------------
     # MATCH BY CAPTION (Baseline 2, unchanged semantics)

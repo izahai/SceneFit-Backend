@@ -57,13 +57,16 @@ def main():
     faiss.write_index(index, str(output_dir / "clothes_image.index"))
 
     # -------- METADATA --------
+    # -------- METADATA --------
     with open(output_dir / "clothes_image_meta.pkl", "wb") as f:
         pickle.dump(
             {
-                "filenames": [p.name for p in image_paths]
+                "filenames": [p.name for p in image_paths],
+                "embeddings": image_embs,   # 🔥 ADD THIS
             },
             f,
         )
+
 
     print(f"[OK] Indexed {len(image_paths)} clothing images.")
 
