@@ -40,4 +40,5 @@ def retrieve_best_fit_aesthetic(
 ):
     bg_path = _save_bg_upload(image)
     model = ModelRegistry.get("aesthetic")
-    return score_outfits(model, bg_path, top_k)
+    results = score_outfits(model, bg_path, top_k)
+    return results["results"]
