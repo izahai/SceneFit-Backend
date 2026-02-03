@@ -4,7 +4,7 @@ from app.services.all_methods import *
 
 router = APIRouter()
 
-@router.post("/all-methods", tags=["all_methods"])
+@router.post("/all-methods")
 def retrieve_all_methods(
     image: UploadFile = File(...),
     top_k: int = Form(5),
