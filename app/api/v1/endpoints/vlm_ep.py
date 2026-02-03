@@ -104,20 +104,37 @@ def _build_query_embedding(
     scene_caption: str,
     bg_image_emb: torch.Tensor,
     matcher,
-    weights=(0.65, 0.25, 0.10),
+    n_good: int = 7,
+    weights=(0.40, 0.4, 0.2),
+    domain_suffix: str = ", 3D rendered character model, game asset style"
 ):
-    w_color, w_scene, w_img = weights
+    w_semantic, w_scene, w_img = weights
 
-    color_emb = matcher.encode_text(color_outfits)
-    scene_emb = matcher.encode_text([scene_caption])
+    color_outfits = [desc + domain_suffix for desc in color_outfits]
 
-    query = (
-        w_color * color_emb +
+    # Encode
+    semantic_emb = matcher.encode_text(color_outfits)   # (10, D)
+    scene_emb = matcher.encode_text([scene_caption]) # (1, D)
+
+    good_emb = semantic_emb[:n_good]      # (7, D)
+    bad_emb  = semantic_emb[n_good:]      # (3, D)
+
+    bad_vec = bad_emb.mean(dim=0, keepdim=True)
+    bad_unit = F.normalize(bad_vec, p=2, dim=-1) # Hat b
+        
+        # 3. Orthogonal Rejection: Remove 'bad' component from 'good'
+        # Projection = (good @ bad.T) * bad
+    projection = (good_emb @ bad_unit.T) * bad_unit
+    clean_good = good_emb - projection # Strictly orthogonal now
+
+    # Build 7 contrastive queries (diverse)
+    queries = (
+        w_semantic * clean_good +
         w_scene * scene_emb +
         w_img * bg_image_emb
     )
 
-    return F.normalize(query, dim=-1)
+    return F.normalize(queries, dim=-1)  # (7, D)
 
 
 def _rank_clothes_by_feedback(descriptions: list[str],
@@ -355,11 +372,12 @@ def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
         bg_emb,
         matcher,
     )
+    print("Query Embedding Shape: ",query_emb.shape)
     
     print("Got 3")
 
     # -------------------------
-    # FAISS retrieval (coarse)
+    # FAISS retrieval (coarse)  
     # -------------------------
     candidates = matcher.match_clothes(
         query_emb=query_emb,
