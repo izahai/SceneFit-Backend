@@ -3,8 +3,8 @@
 
 retrieval_methods:
   clip:
-    url: "https://50540cf4ed95.ngrok-free.app"
-    endpoint: "/api/v1/retrieval"
+    url: "https://triadelphous-supersaintly-millicent.ngrok-free.dev/"
+    endpoint: "/api/v1/retrieval/clip"
     description: "CLIP-based vector database retrieval"
   
   image_edit:
@@ -14,12 +14,12 @@ retrieval_methods:
   
   vlm:
     url: "https://triadelphous-supersaintly-millicent.ngrok-free.dev/"
-    endpoint: "/api/v1/retrieval"
+    endpoint: "/api/v1/retrieval/vlm-faiss-composed-retrieval"
     description: "Vision-Language Model retrieval"
   
   aesthetic:
     url: "http://localhost:8004"
-    endpoint: "/api/v1/retrieval/aes"
+    endpoint: "/api/v1/retrieval/aesthetic"
     description: "Aesthetic predictor retrieval"
 
 # Request timeout in seconds
