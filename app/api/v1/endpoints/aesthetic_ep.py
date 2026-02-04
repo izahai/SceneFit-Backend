@@ -4,6 +4,7 @@ from pathlib import Path
 from app.services.img_processor import compose_2d_on_background
 from app.services.model_registry import ModelRegistry
 import time
+from app.utils.util import convert_filename_to_url
 
 router = APIRouter()
 
@@ -64,9 +65,10 @@ def score_outfits(rg_head, bg_path: Path, top_k: int = 5, batch_size: int = 300)
 def retrieve_best_fit_aesthetic(
     image: UploadFile = File(...),
     top_k: int = Form(5),
-    batch_size: int = Form(100),
+    batch_size: int = Form(300),
 ):
     bg_path = _save_bg_upload(image)
     model = ModelRegistry.get("aesthetic")
-    results = score_outfits(model, bg_path, top_k, batch_size)
+    results = score_outfits(model, bg_path, top_k, batch_size)['results']
+    results['image_url'] = convert_filename_to_url(results["name"])
     return results["results"]
