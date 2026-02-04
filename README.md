@@ -137,7 +137,8 @@ Example response:
 {
    "imageEdit": [{
       "name": "name1",
-      "score": 0.24
+      "score": 0.24,
+      "image_url": "http://localhost:8000/images/{name1}.jpg",
    }],
    "vlm": [],
    "clip": [],
