@@ -152,7 +152,7 @@ Example response:
 ### Submit a participant response
 
 - Endpoint: `POST /study/response`
-- Content-Type: `multipart/form-data`
+- Content-Type: `application/json`
 - Purpose: Append a single participant payload to an on-disk JSONL file (append-only).
 
 Methods:
@@ -162,14 +162,10 @@ Methods:
 - `CLIP Model`
 - `Asthetic Model`
 
-Request form fields:
-
-- `payload` (string): JSON string containing the participant selections.
+Request body:
 
 The backend auto-generates a `participantId` for each submission. No timestamp is required.
 
-
-Example JSON for the `payload` field:
 
 ```json
 {

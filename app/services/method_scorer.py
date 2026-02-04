@@ -38,9 +38,20 @@ def score_methods(methods: List[str],
 			for r in resp.get('responses', []):
 				if not isinstance(r, dict):
 					continue
-				mid = r.get('methodId') or r.get('method_id')
-				sel = r.get('selectedRank') or r.get('selected_rank') or r.get('selected')
-				vcounts = r.get('viewCounts') or r.get('view_counts')
+				# Don't use truthiness for these fields because selectedRank can be 0.
+				mid = r.get('methodId')
+				if mid is None:
+					mid = r.get('method_id')
+
+				sel = r.get('selectedRank')
+				if sel is None:
+					sel = r.get('selected_rank')
+				if sel is None:
+					sel = r.get('selected')
+
+				vcounts = r.get('viewCounts')
+				if vcounts is None:
+					vcounts = r.get('view_counts')
 				if mid is None or sel is None:
 					continue
 				try:

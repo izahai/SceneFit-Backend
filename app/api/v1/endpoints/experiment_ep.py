@@ -4,7 +4,7 @@ import os
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services.method_scorer import score_methods
@@ -34,6 +34,16 @@ class UnityParticipantPayload(BaseModel):
     finalWinnerMethodId: str
 
 
+class UnityParticipantSubmission(BaseModel):
+    """Client submission format for /study/response (JSON body).
+
+    The server generates participantId and writes a UnityParticipantPayload to storage.
+    """
+
+    responses: List[UnityMethodResponse]
+    finalWinnerMethodId: str
+
+
 class StudyScoreQuery(BaseModel):
     # Hard-coded method ids/names for this study. Kept as a field so the
     # frontend can omit it or the backend can validate it.
@@ -55,22 +65,20 @@ STUDY_METHODS = [
 
 @router.post("/study/response")
 def submit_study_response(
-    payload: str = Form(..., description="JSON string containing {responses: [...], finalWinnerMethodId: str}"),
+    submission: UnityParticipantSubmission,
 ) -> Dict[str, Any]:
-    """Ingest a single participant response from Unity (multipart/form-data).
+    """Ingest a single participant response from Unity (application/json).
 
     Contract:
-    - Client sends a single form field named `payload` containing JSON.
+    - Client sends JSON body with {responses: [...], finalWinnerMethodId: str}.
     - Server auto-generates a participantId (UUID4).
     - No timestamp is required/stored.
     """
-    try:
-        data = UnityParticipantPayload(
-            participantId=str(uuid4()),
-            **(__import__("json").loads(payload)),
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
+    data = UnityParticipantPayload(
+        participantId=str(uuid4()),
+        responses=submission.responses,
+        finalWinnerMethodId=submission.finalWinnerMethodId,
+    )
 
     # Basic validation: ensure methodIds are unique per participant
     method_ids = [r.methodId for r in data.responses]
