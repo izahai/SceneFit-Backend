@@ -7,7 +7,7 @@ from typing import Optional
 import numpy as np
 import requests
 from fastapi import APIRouter, UploadFile, File, Form, Request, Depends, HTTPException
-
+from app.utils.util import convert_filename_to_url
 from app.services.image_edit import edit_image_scene_img, edit_image_outfit_desc, get_outfit_suggestion_remote
 from app.services.model_registry import ModelRegistry
 from app.services.speech_to_text import load_audio_from_upload, convert_speech_to_text
@@ -108,6 +108,7 @@ def retrieve_clothes_image_edit(
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
+            "image_url": convert_filename_to_url(s.get("metadata")),
         }
         for s in scores[:top_k]
     ]
@@ -181,6 +182,7 @@ def retrieve_clothes_image_edit_flux(
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
+            "image_url": convert_filename_to_url(s.get("metadata")),
         }
         for s in scores[:top_k]
     ]
@@ -243,6 +245,7 @@ def apply_feedback_image_edit_flux(
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
+            "image_url": convert_filename_to_url(s.get("metadata")),
         }
         for s in scores[:top_k]
     ]
@@ -301,6 +304,7 @@ def apply_feedback_image_edit(
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
+            "image_url": convert_filename_to_url(s.get("metadata")),
         }
         for s in scores[:top_k]
     ]
@@ -348,6 +352,7 @@ def retrieve_all_backgrounds(
                     {
                         "name": _extract_outfit_name(s.get("metadata")),
                         "score": s["score"],
+                        "image_url": convert_filename_to_url(s.get("metadata")),
                     }
                     for s in scores[:top_k]
                 ],
