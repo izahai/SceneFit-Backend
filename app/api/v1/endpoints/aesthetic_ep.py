@@ -20,7 +20,7 @@ def _save_bg_upload(image: UploadFile) -> Path:
             f.write(image.file.read())
     return bg_path
 
-def score_outfits(rg_head, bg_path: Path, top_k: int = 5, batch_size: int = 100):
+def score_outfits(rg_head, bg_path: Path, top_k: int = 5, batch_size: int = 300):
     all_scores = []
     offset = 0
     
