@@ -276,77 +276,11 @@ def get_best_clothes_by_tournament(image: UploadFile = File(...)):
         "best_clothes": best_clothes,
     }
 
-
-@router.post("/all-methods")
-def get_clothes_all_methods(image: UploadFile = File(...)):
-    """
-    Baseline 1: suggested-clothes (VLM descriptions + PE-CLIP top-1)
-    Baseline 2: tournament selection (VLM background caption + captions JSON)
-    Baseline 3: captions matching (VLM descriptions + captions JSON)
-    """
-
-    bg_path = _save_bg_upload(image)
-
-    vlm = ModelRegistry.get("vlm")
-
-    # -------------------------
-    # Baseline 1: suggest-clothes-img-matching
-    # -------------------------
-    descriptions, res1 = _method_image_match(vlm, bg_path)
-    
-    # -------------------------
-    # Baseline 2: suggest-clothes-img-matching
-    # -------------------------
-    descriptions, res2 = _method_caption_match(vlm, descriptions)
-
-    # -------------------------
-    # Baseline 3: tournament selection
-    # -------------------------
-    background_caption = vlm.generate_clothes_caption(
-        str(bg_path),
-        vlm.bg_caption,
-    )
-    clothes_captions = _get_clothes_captions()
-    res3 = _select_clothes_via_tournament(vlm, background_caption, clothes_captions)
-    res3 = {"name_clothes": res3, "similarity": 0, "best_description": "",}
-
-    # -------------------------
-    # Baseline 4: Aesthetic Predictor
-    # -------------------------
-    aes_model = ModelRegistry.get("aesthetic")
-    aes_pred = score_outfits(aes_model, bg_path)
-    res4 = aes_pred["results"][0]
-
-    response_payload = {
-        "img_name": image.filename,
-        "approach_1": {
-            "bg_caption": "",
-            "query": descriptions,
-            "result": res1,
-        },
-        "approach_2": {
-            "bg_caption": "",
-            "query": descriptions,
-            "result": res2,
-        },
-        "approach_3": {
-            "bg_caption": background_caption,
-            "query": [],
-            "result": res3
-        },
-        "approach_4": {
-            "bg_caption": "",
-            "query": [],
-            "result": res4
-        },
-    }
-
 @router.post("/vlm-faiss-composed-retrieval")
 def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
     bg_path = _save_bg_upload(image)
 
     vlm = ModelRegistry.get("vlm")
-    
 
     # -------------------------
     # Extract query signals
@@ -406,13 +340,7 @@ def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
     for c in reranked:
         c.pop("image", None)
     
-    return {
-        "method": "vlm-faiss-composed-retrieval",
-        "count": len(reranked),
-        "scene_caption": signals["scene_caption"],
-        "results": reranked,
-        "best": reranked[0] if reranked else None,
-    }
+    return reranked
 
 
 @router.post("/vlm-caption-feedback")

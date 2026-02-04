@@ -14,8 +14,10 @@ def _save_bg_upload(image: UploadFile) -> Path:
     suffix = Path(image.filename).suffix or ".png"
     bg_filename = f"{time.time_ns()}{suffix}"
     bg_path = BG_DIR / bg_filename
-    with open(bg_path, "wb") as f:
-        f.write(image.file.read())
+    
+    if not bg_path.exists():
+        with open(bg_path, "wb") as f:
+            f.write(image.file.read())
     return bg_path
 
 def score_outfits(rg_head, bg_path: Path, top_k: int = 5):
