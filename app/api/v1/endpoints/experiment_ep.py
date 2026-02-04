@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Form, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services.method_scorer import score_methods
@@ -27,8 +28,8 @@ class UnityMethodResponse(BaseModel):
 
 
 class UnityParticipantPayload(BaseModel):
+    # Stored representation only (client does not send participantId)
     participantId: str
-    timestamp: Optional[str] = None
     responses: List[UnityMethodResponse]
     finalWinnerMethodId: str
 
@@ -53,21 +54,35 @@ STUDY_METHODS = [
 
 
 @router.post("/study/response")
-def submit_study_response(payload: UnityParticipantPayload) -> Dict[str, Any]:
-    """Ingest a single participant response from Unity.
+def submit_study_response(
+    payload: str = Form(..., description="JSON string containing {responses: [...], finalWinnerMethodId: str}"),
+) -> Dict[str, Any]:
+    """Ingest a single participant response from Unity (multipart/form-data).
 
-    This endpoint stores the raw participant payload as JSONL (append-only).
+    Contract:
+    - Client sends a single form field named `payload` containing JSON.
+    - Server auto-generates a participantId (UUID4).
+    - No timestamp is required/stored.
     """
+    try:
+        data = UnityParticipantPayload(
+            participantId=str(uuid4()),
+            **(__import__("json").loads(payload)),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
+
     # Basic validation: ensure methodIds are unique per participant
-    method_ids = [r.methodId for r in payload.responses]
+    method_ids = [r.methodId for r in data.responses]
     if len(set(method_ids)) != len(method_ids):
         raise HTTPException(status_code=400, detail="Duplicate methodId in responses")
 
     # Store the payload exactly (as dict) so we can re-score later.
-    meta = append_response(payload.model_dump(), file_path=DEFAULT_JSONL_PATH)
+    meta = append_response(data.model_dump(), file_path=DEFAULT_JSONL_PATH)
 
     return {
         "ok": True,
+        "participantId": data.participantId,
         "stored": meta,
     }
 

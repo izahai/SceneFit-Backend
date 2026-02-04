@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 import json
 
 def score_methods(methods: List[str],
@@ -26,8 +26,7 @@ def score_methods(methods: List[str],
 	# Process each participant. Support multiple input shapes including the
 	# Unity payload format (selectedRank is 0-based):
 	# {
-	#   "participantId": "uuid",
-	#   "timestamp": "...",
+	#   "participantId": "<generated-by-server>",
 	#   "responses": [ {"methodId": "Image Editing", "selectedRank": 0, "viewCounts": [0,1,0,0,0]}, ... ],
 	#   "finalWinnerMethodId": "CLIP Model"
 	# }
@@ -80,7 +79,7 @@ def score_methods(methods: List[str],
 		if method_choices is None:
 			method_choices = resp.get('method_choices')
 
-	# normalize method_choices: allow list (ordered) or dict
+		# normalize method_choices: allow list (ordered) or dict
 		choices_map: Dict[str, int] = {}
 		if isinstance(method_choices, dict):
 			# Expect keys are method ids and values are chosen indices
@@ -190,7 +189,6 @@ if __name__ == '__main__':
 	participant_payloads = [
 		{
 			"participantId": "uuid-123",
-			"timestamp": "2026-02-04T10:22:31Z",
 			"responses": [
 				{"methodId": "Image Editing", "selectedRank": 0, "viewCounts": [0, 2, 0, 1, 0]},
 				{"methodId": "Vision Language Model", "selectedRank": 2, "viewCounts": [1, 0, 2, 0, 0]},
@@ -201,7 +199,6 @@ if __name__ == '__main__':
 		},
 		{
 			"participantId": "uuid-456",
-			"timestamp": "2026-02-04T10:25:10Z",
 			"responses": [
 				{"methodId": "Image Editing", "selectedRank": 1, "viewCounts": [0, 1, 0, 0, 0]},
 				{"methodId": "Vision Language Model", "selectedRank": 0, "viewCounts": [2, 0, 1, 0, 0]},
@@ -212,7 +209,6 @@ if __name__ == '__main__':
 		},
 		{
 			"participantId": "uuid-789",
-			"timestamp": "2026-02-04T10:28:55Z",
 			"responses": [
 				{"methodId": "Image Editing", "selectedRank": 0, "viewCounts": [1, 0, 0, 0, 0]},
 				{"methodId": "Vision Language Model", "selectedRank": 1, "viewCounts": [0, 2, 0, 0, 0]},
