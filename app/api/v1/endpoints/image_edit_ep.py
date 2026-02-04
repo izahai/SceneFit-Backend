@@ -67,7 +67,7 @@ def retrieve_clothes_image_edit(
     # -------------------------------------------------
     # 2. Get GPT edited images
     # -------------------------------------------------
-    pref_text = preference_text or convert_speech_to_text(preference_audio)
+    pref_text = preference_text or convert_speech_to_text(preference_audio) if preference_audio else ""
     print(f"[image_edit_ep] Preference text: {pref_text}")
 
     edit_result = None
@@ -103,16 +103,14 @@ def retrieve_clothes_image_edit(
         "preference_text": pref_text,
     }
 
-    response = [
+    print("[image_edit_ep] Returning results...")
+    return [
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
         }
         for s in scores[:top_k]
     ]
-
-    print("[image_edit_ep] Returning results...")
-    return response
 
 @router.post("/image-edit-flux")
 def retrieve_clothes_image_edit_flux(
@@ -138,7 +136,7 @@ def retrieve_clothes_image_edit_flux(
     # -------------------------------------------------
     # 2. Get outfit suggestion from remote VLM service
     # -------------------------------------------------
-    pref_text = preference_text or convert_speech_to_text(preference_audio)
+    pref_text = preference_text or convert_speech_to_text(preference_audio) if preference_audio else ""
     print(f"[image_edit_ep] Preference text: {pref_text}")
     
     outfit_desc = get_outfit_suggestion_remote(bg_path, preference_text=pref_text)
@@ -178,16 +176,14 @@ def retrieve_clothes_image_edit_flux(
         "preference_text": pref_text,
     }
 
-    response = [
+    print("[image_edit_ep] Returning results...")
+    return [
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
         }
         for s in scores[:top_k]
     ]
-
-    print("[image_edit_ep] Returning results...")
-    return response
 
 @router.post("/image-edit-flux/apply-feedback")
 def apply_feedback_image_edit_flux(
@@ -242,15 +238,14 @@ def apply_feedback_image_edit_flux(
     session["preference_text"] = pref_text
     RETRIEVAL_SESSIONS[session_id] = session
 
-    response = [
+    print("[image_edit_ep] Returning results...")
+    return [
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
         }
         for s in scores[:top_k]
     ]
-
-    return response
 
 @router.post("/image-edit/apply-feedback")
 def apply_feedback_image_edit(
@@ -301,15 +296,14 @@ def apply_feedback_image_edit(
     session["preference_text"] = pref_text
     RETRIEVAL_SESSIONS[session_id] = session
 
-    response = [
+    print("[image_edit_ep] Returning results...")
+    return [
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
         }
         for s in scores[:top_k]
     ]
-
-    return response
 
 @router.post("/image-edit/retrieve-all")
 def retrieve_all_backgrounds(
@@ -352,9 +346,8 @@ def retrieve_all_backgrounds(
                 "count": min(top_k, len(scores)),
                 "results": [
                     {
-                        "outfit_name": _extract_outfit_name(s.get("metadata")),
+                        "name": _extract_outfit_name(s.get("metadata")),
                         "score": s["score"],
-                        "clothes_path": s.get("metadata"),
                     }
                     for s in scores[:top_k]
                 ],

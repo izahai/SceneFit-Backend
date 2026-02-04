@@ -1,38 +1,63 @@
+import asyncio
+import io
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from app.api.v1.endpoints.pe_clip_ep import retrieve_scene_outfit
 from app.services.all_methods import *
+from app.services.all_methods_safe import (
+    get_clip_results_safe,
+    get_image_edit_results_safe,
+    get_vlm_results_safe,
+    get_aes_results_safe,
+)
 
 router = APIRouter()
 
 @router.post("/all-methods")
-def retrieve_all_methods(
+async def retrieve_all_methods(
     image: UploadFile = File(...),
     top_k: int = Form(5),
 ):
     """
     Endpoint that combines multiple retrieval methods for demonstration purposes.
+    Returns partial results even if some services fail.
     
     {
         "<method_name>": [
             {"name": str, "score": float},
-        ],
+        ] | {"error": true, "message": str} (if service failed),
     }
     """
     
-    image_edit_results = get_image_edit_results(image, top_k, mock=True)
-    vlm_results = get_vlm_results(image, top_k, mock=True)
-    clip_results = get_clip_results(image, top_k, mock=True)
-    aes_results = get_aes_results(image, top_k, mock=False)
+    # Read file content once to avoid conflicts in parallel execution
+    image_content = await image.read()
+    filename = image.filename
+    content_type = image.content_type
     
-    return {
+    # Execute all retrieval methods in parallel with error handling
+    image_edit_results, vlm_results, clip_results, aes_results = await asyncio.gather(
+        asyncio.to_thread(get_image_edit_results_safe, image_content, filename, content_type, top_k, False),
+        asyncio.to_thread(get_vlm_results_safe, image_content, filename, content_type, top_k, False),
+        asyncio.to_thread(get_clip_results_safe, image_content, filename, content_type, top_k, False),
+        asyncio.to_thread(get_aes_results_safe, image_content, filename, content_type, top_k, False),
+        return_exceptions=True
+    )
+    
+    response = {
         "imageEdit": image_edit_results,
         "vlm": vlm_results,
         "clip": clip_results,
         "aesthetic": aes_results,
     }
     
+    # Count how many services succeeded vs failed
+    success_count = sum(1 for v in response.values() if not isinstance(v, dict) or not v.get("error"))
+    failed_count = 4 - success_count
+    print(f"[ALL-METHODS] {success_count}/4 services succeeded, {failed_count} failed")
+    
+    return response
+    
 @router.post("/clip")
-def retrieve_clip_method(
+async def retrieve_clip_method(
     image: UploadFile = File(...),
     top_k: int = Form(5),
 ):
@@ -42,10 +67,11 @@ def retrieve_clip_method(
     Returns:
         List of results in format [{"name": str, "score": float}]
     """
-    return get_clip_results(image, top_k)
+    image_content = await image.read()
+    return get_clip_results(image_content, image.filename, image.content_type, top_k, mock=False)
 
 @router.post("/image-edit")
-def retrieve_image_edit_method(
+async def retrieve_image_edit_method(
     image: UploadFile = File(...),
     top_k: int = Form(5),
 ):
@@ -55,10 +81,11 @@ def retrieve_image_edit_method(
     Returns:
         List of results in format [{"name": str, "score": float}]
     """
-    return get_image_edit_results(image, top_k)
+    image_content = await image.read()
+    return get_image_edit_results(image_content, image.filename, image.content_type, top_k, mock=False)
 
 @router.post("/vlm")
-def retrieve_vlm_method(
+async def retrieve_vlm_method(
     image: UploadFile = File(...),
     top_k: int = Form(5),
 ):
@@ -68,10 +95,11 @@ def retrieve_vlm_method(
     Returns:
         List of results in format [{"name": str, "score": float}]
     """
-    return get_vlm_results(image, top_k)
+    image_content = await image.read()
+    return get_vlm_results(image_content, image.filename, image.content_type, top_k, mock=False)
 
 @router.post("/aesthetic")
-def retrieve_aesthetic_method(
+async def retrieve_aesthetic_method(
     image: UploadFile = File(...),
     top_k: int = Form(5),
 ):
@@ -81,4 +109,5 @@ def retrieve_aesthetic_method(
     Returns:
         List of results in format [{"name": str, "score": float}]
     """
-    return get_aes_results(image, top_k)
+    image_content = await image.read()
+    return get_aes_results(image_content, image.filename, image.content_type, top_k, mock=False)
