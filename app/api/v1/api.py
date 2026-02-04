@@ -10,3 +10,4 @@ api_router = APIRouter()
 
 api_router.include_router(image_edit_ep.router, prefix="/retrieval", tags=["retrieval"])
 api_router.include_router(pe_clip_ep.router, prefix="/retrieval", tags=["retrieval"])
+api_router.include_router(vlm_ep.router, prefix="/retrieval", tags=["retrieval"])

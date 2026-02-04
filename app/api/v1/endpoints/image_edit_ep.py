@@ -103,28 +103,14 @@ def retrieve_clothes_image_edit(
         "preference_text": pref_text,
     }
 
-    response = {
-        "method": "image-edit",
-        "gender": gender,
-        "edited_image_path": str(processed_image_path),
-        "ref_image_path": str(ref_image_path) if ref_image_path else None,
-        "session_id": session_id,
-        "count": min(top_k, len(scores)),
-        "results": [
-            {
-                "outfit_name": _extract_outfit_name(s.get("metadata")),
-                "score": s["score"],
-                "clothes_path": s.get("metadata"),
-            }
-            for s in scores[:top_k]
-        ],
-    }
-
-    if not return_metadata:
-        for item in response["results"]:
-            item.pop("clothes_path", None)
     print("[image_edit_ep] Returning results...")
-    return response
+    return [
+        {
+            "name": _extract_outfit_name(s.get("metadata")),
+            "score": s["score"],
+        }
+        for s in scores[:top_k]
+    ]
 
 @router.post("/image-edit-flux")
 def retrieve_clothes_image_edit_flux(
@@ -190,28 +176,14 @@ def retrieve_clothes_image_edit_flux(
         "preference_text": pref_text,
     }
 
-    response = {
-        "method": "image-edit-flux",
-        "gender": gender,
-        "edited_image_path": str(processed_image_path),
-        "ref_image_path": str(ref_image_path) if ref_image_path else None,
-        "session_id": session_id,
-        "count": min(top_k, len(scores)),
-        "results": [
-            {
-                "outfit_name": _extract_outfit_name(s.get("metadata")),
-                "score": s["score"],
-                "clothes_path": s.get("metadata"),
-            }
-            for s in scores[:top_k]
-        ],
-    }
-
-    if not return_metadata:
-        for item in response["results"]:
-            item.pop("clothes_path", None)
     print("[image_edit_ep] Returning results...")
-    return response
+    return [
+        {
+            "name": _extract_outfit_name(s.get("metadata")),
+            "score": s["score"],
+        }
+        for s in scores[:top_k]
+    ]
 
 @router.post("/image-edit-flux/apply-feedback")
 def apply_feedback_image_edit_flux(
@@ -266,22 +238,14 @@ def apply_feedback_image_edit_flux(
     session["preference_text"] = pref_text
     RETRIEVAL_SESSIONS[session_id] = session
 
-    response = {
-        "method": "image-edit-flux/apply-feedback",
-        "session_id": session_id,
-        "edited_image_path": str(processed_image_path),
-        "count": min(top_k, len(scores)),
-        "results": [
-            {
-                "outfit_name": _extract_outfit_name(s.get("metadata")),
-                "score": s["score"],
-                "clothes_path": s.get("metadata"),
-            }
-            for s in scores[:top_k]
-        ],
-    }
-
-    return response
+    print("[image_edit_ep] Returning results...")
+    return [
+        {
+            "name": _extract_outfit_name(s.get("metadata")),
+            "score": s["score"],
+        }
+        for s in scores[:top_k]
+    ]
 
 @router.post("/image-edit/apply-feedback")
 def apply_feedback_image_edit(
@@ -332,22 +296,14 @@ def apply_feedback_image_edit(
     session["preference_text"] = pref_text
     RETRIEVAL_SESSIONS[session_id] = session
 
-    response = {
-        "method": "image-edit/apply-feedback",
-        "session_id": session_id,
-        "edited_image_path": str(processed_image_path),
-        "count": min(top_k, len(scores)),
-        "results": [
-            {
-                "outfit_name": _extract_outfit_name(s.get("metadata")),
-                "score": s["score"],
-                "clothes_path": s.get("metadata"),
-            }
-            for s in scores[:top_k]
-        ],
-    }
-
-    return response
+    print("[image_edit_ep] Returning results...")
+    return [
+        {
+            "name": _extract_outfit_name(s.get("metadata")),
+            "score": s["score"],
+        }
+        for s in scores[:top_k]
+    ]
 
 @router.post("/image-edit/retrieve-all")
 def retrieve_all_backgrounds(
@@ -390,9 +346,8 @@ def retrieve_all_backgrounds(
                 "count": min(top_k, len(scores)),
                 "results": [
                     {
-                        "outfit_name": _extract_outfit_name(s.get("metadata")),
+                        "name": _extract_outfit_name(s.get("metadata")),
                         "score": s["score"],
-                        "clothes_path": s.get("metadata"),
                     }
                     for s in scores[:top_k]
                 ],
