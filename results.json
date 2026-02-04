@@ -1,186 +1,125 @@
 {
-  "method": "baseline-clip-img2img",
-  "count": 10,
-  "results": [
-    {
-      "name_clothes": "m1_light_12.png",
-      "similarity": 0.5376977920532227,
-      "rerank_score": 0.5376977920532227
-    },
-    {
-      "name_clothes": "m5_brown_8.png",
-      "similarity": 0.5319127440452576,
-      "rerank_score": 0.5319127440452576
-    },
-    {
-      "name_clothes": "m5_brown_9.png",
-      "similarity": 0.5316189527511597,
-      "rerank_score": 0.5316189527511597
-    },
-    {
-      "name_clothes": "m1_light_18.png",
-      "similarity": 0.5287796258926392,
-      "rerank_score": 0.5287796258926392
-    },
-    {
-      "name_clothes": "m6_brown_5.png",
-      "similarity": 0.5225841999053955,
-      "rerank_score": 0.5225841999053955
-    },
-    {
-      "name_clothes": "m1_light_7.png",
-      "similarity": 0.5222921967506409,
-      "rerank_score": 0.5222921967506409
-    },
-    {
-      "name_clothes": "m1_brown_4.png",
-      "similarity": 0.521356463432312,
-      "rerank_score": 0.521356463432312
-    },
-    {
-      "name_clothes": "m5_brown_7.png",
-      "similarity": 0.5176643133163452,
-      "rerank_score": 0.5176643133163452
-    },
-    {
-      "name_clothes": "m5_brown_6.png",
-      "similarity": 0.5167598128318787,
-      "rerank_score": 0.5167598128318787
-    },
-    {
-      "name_clothes": "m1_dark_4.png",
-      "similarity": 0.5121983289718628,
-      "rerank_score": 0.5121983289718628
-    }
-  ]
-}
-
-
-
-
-{
   "method": "vlm-faiss-composed-retrieval",
   "count": 10,
-  "scene_caption": "This bright, sunlit outdoor scene with mossy rocks, scattered trees, and a clear blue sky suggests casual, nature-oriented attire suitable for a relaxed day outdoors in mild weather, with earthy tones and lightweight fabrics ideal for exploration or leisure.",
+  "scene_caption": "This vibrant, sunlit outdoor scene features a lush purple meadow under a bright blue sky, surrounded by cascading purple trees and rocky terrain, suggesting a casual, cheerful spring or summer outing where bold, light, and complementary colors like pastel greens, whites, or soft neutrals would harmonize beautifully with the vivid purple surroundings.",
   "results": [
     {
-      "name_clothes": "m1_brown_5.png",
-      "similarity": 0.43620163202285767,
-      "rerank_score": 0.41561001539230347
+      "outfit_name": "avatars_7f8a319e60a442a09b3363b0efc63de5.png",
+      "similarity": 0.35791197419166565,
+      "score": 0.36652788519859314
     },
     {
-      "name_clothes": "m1_light_2.png",
-      "similarity": 0.4318081736564636,
-      "rerank_score": 0.394328773021698
+      "outfit_name": "avatars_16327fc7b67f49df9ad15587e8146af0.png",
+      "similarity": 0.357416570186615,
+      "score": 0.3332185745239258
     },
     {
-      "name_clothes": "m1_light_18.png",
-      "similarity": 0.44758880138397217,
-      "rerank_score": 0.385324627161026
+      "outfit_name": "avatars_4d710b4eb2ec4254a0594714b9344841.png",
+      "similarity": 0.3557838201522827,
+      "score": 0.33000648021698
     },
     {
-      "name_clothes": "m1_light_7.png",
-      "similarity": 0.4395168721675873,
-      "rerank_score": 0.3781675696372986
+      "outfit_name": "avatars_90b39413778e4f16b5c1dc2843a1443c.png",
+      "similarity": 0.366798460483551,
+      "score": 0.3288881480693817
     },
     {
-      "name_clothes": "m5_brown_7.png",
-      "similarity": 0.4365791380405426,
-      "rerank_score": 0.37317904829978943
+      "outfit_name": "avatars_9ffa990485224287aec0a4542435fcad.png",
+      "similarity": 0.3698696792125702,
+      "score": 0.3280368745326996
     },
     {
-      "name_clothes": "m1_light_12.png",
-      "similarity": 0.4559721350669861,
-      "rerank_score": 0.36432233452796936
+      "outfit_name": "avatars_1b9d1731767240ceafe6316b5b7961e5.png",
+      "similarity": 0.35738635063171387,
+      "score": 0.3244801163673401
     },
     {
-      "name_clothes": "m5_brown_2.png",
-      "similarity": 0.433725506067276,
-      "rerank_score": 0.34856873750686646
+      "outfit_name": "avatars_baf787de2468487683c3ab037fae7c2f.png",
+      "similarity": 0.3585784435272217,
+      "score": 0.3193792998790741
     },
     {
-      "name_clothes": "m1_brown_4.png",
-      "similarity": 0.4354374408721924,
-      "rerank_score": 0.3452177345752716
+      "outfit_name": "avatars_6c5c428c5f3c4b1fab1f3901ad49646f.png",
+      "similarity": 0.3617788553237915,
+      "score": 0.31936466693878174
     },
     {
-      "name_clothes": "m5_brown_8.png",
-      "similarity": 0.4395834505558014,
-      "rerank_score": 0.3185296654701233
+      "outfit_name": "avatars_eaf0550572c64d648fdf07367cec03fc.png",
+      "similarity": 0.3552928566932678,
+      "score": 0.285172700881958
     },
     {
-      "name_clothes": "m5_brown_9.png",
-      "similarity": 0.4392850995063782,
-      "rerank_score": 0.316882461309433
+      "outfit_name": "avatars_ef91a53e66b4464c8b64d189524961c4.png",
+      "similarity": 0.35574662685394287,
+      "score": 0.2745130956172943
     }
   ],
   "best": {
-    "name_clothes": "m1_brown_5.png",
-    "similarity": 0.43620163202285767,
-    "rerank_score": 0.41561001539230347
+    "outfit_name": "avatars_7f8a319e60a442a09b3363b0efc63de5.png",
+    "similarity": 0.35791197419166565,
+    "score": 0.36652788519859314
   }
 }
 
-
 {
   "method": "vlm-faiss-composed-retrieval",
   "count": 10,
-  "scene_caption": "This vibrant, sunlit outdoor scene features a field of purple flowers under a bright blue sky, surrounded by cascading purple trees and rocky terrain, suggesting a casual, cheerful spring or summer day perfect for light, colorful, and breathable clothing that complements the vivid purple and green tones.",
+  "scene_caption": "This vibrant, sunlit outdoor scene with purple flora and rocky terrain suggests casual, adventurous attire in warm, bright tones to match the lively, colorful environment.",
   "results": [
     {
-      "name_clothes": "avatars_ad56d7730bfd427aaf9677c0a2832786.png",
-      "similarity": 0.2713354825973511,
-      "rerank_score": 0.33645108342170715
+      "outfit_name": "m1_light_22.png",
+      "similarity": 0.3908979594707489,
+      "score": 0.4473036229610443
     },
     {
-      "name_clothes": "avatars_7f8a319e60a442a09b3363b0efc63de5.png",
-      "similarity": 0.26883774995803833,
-      "rerank_score": 0.3333745300769806
+      "outfit_name": "avatars_e7978ab6847041c98158691b12d72524.png",
+      "similarity": 0.35804158449172974,
+      "score": 0.3997820317745209
     },
     {
-      "name_clothes": "avatars_c4e36d88a50849e38f271f9570f04cf7.png",
-      "similarity": 0.27215754985809326,
-      "rerank_score": 0.3129391372203827
+      "outfit_name": "avatars_b2f831c101ac4142b1dfc55bb351c168.png",
+      "similarity": 0.35544976592063904,
+      "score": 0.3935561776161194
     },
     {
-      "name_clothes": "avatars_1f19e7485f824d95ba1236b22fce8620.png",
-      "similarity": 0.2811240553855896,
-      "rerank_score": 0.3053753077983856
+      "outfit_name": "avatars_39e76cba2cfa4df29a92dbb5a0fa4185.png",
+      "similarity": 0.35437893867492676,
+      "score": 0.3901573717594147
     },
     {
-      "name_clothes": "avatars_25c9a73c21084d8c9de08c24a22479c4.png",
-      "similarity": 0.2754352390766144,
-      "rerank_score": 0.2988414168357849
+      "outfit_name": "avatars_225fdf791686414e8311bad2f680ba8b.png",
+      "similarity": 0.3597300350666046,
+      "score": 0.3899919390678406
     },
     {
-      "name_clothes": "avatars_0897ecda4c0249339070911a3a969206.png",
-      "similarity": 0.2830156683921814,
-      "rerank_score": 0.2913392186164856
+      "outfit_name": "avatars_6ac8a941307f4ea3adad7c74bd853b31.png",
+      "similarity": 0.3544735014438629,
+      "score": 0.3862423598766327
     },
     {
-      "name_clothes": "avatars_44943d65275a4b29b08e692e9d91ce95.png",
-      "similarity": 0.26985442638397217,
-      "rerank_score": 0.28558698296546936
+      "outfit_name": "avatars_0fc92f65e51f4ed5885a12d54d0b69aa.png",
+      "similarity": 0.3523539900779724,
+      "score": 0.3853699862957001
     },
     {
-      "name_clothes": "avatars_909f9eb4a670471b8365b42034b7e045.png",
-      "similarity": 0.2690908908843994,
-      "rerank_score": 0.27889981865882874
+      "outfit_name": "avatars_ad3d27b552e643b58f6945513bb4188d.png",
+      "similarity": 0.3516328036785126,
+      "score": 0.36002153158187866
     },
     {
-      "name_clothes": "avatars_addb93897bec4bd2b9488b01ceb0bf9e.png",
-      "similarity": 0.27695006132125854,
-      "rerank_score": 0.26413965225219727
+      "outfit_name": "avatars_2dfacf31b3c84fec80f9ed79c5d33668.png",
+      "similarity": 0.3526769280433655,
+      "score": 0.3353860080242157
     },
     {
-      "name_clothes": "avatars_c57f656e23954722a64a62997787b03c.png",
-      "similarity": 0.26888835430145264,
-      "rerank_score": 0.2464873045682907
+      "outfit_name": "avatars_7f5448c1f9de4cb6b373c7c3059674fb.png",
+      "similarity": 0.35420477390289307,
+      "score": 0.3338315188884735
     }
   ],
   "best": {
-    "name_clothes": "avatars_ad56d7730bfd427aaf9677c0a2832786.png",
-    "similarity": 0.2713354825973511,
-    "rerank_score": 0.33645108342170715
+    "outfit_name": "m1_light_22.png",
+    "similarity": 0.3908979594707489,
+    "score": 0.4473036229610443
   }
 }

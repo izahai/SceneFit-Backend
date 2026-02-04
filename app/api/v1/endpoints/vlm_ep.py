@@ -16,7 +16,7 @@ from app.services.clothes_captions import generate_clothes_captions_json
 from app.api.v1.endpoints.aesthetic_ep import score_outfits
 router = APIRouter()
 
-BG_DIR = Path("app/uploads/bg")
+BG_DIR = Path("app/data/bg")
 CLOTHES_DIR = Path("app/data/2d")
 CLOTHES_CAPTION = Path("app/data/clothes_captions.json")
 RESULTS_DIR = Path("app/uploads/results")
