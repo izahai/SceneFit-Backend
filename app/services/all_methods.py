@@ -3,6 +3,8 @@
 from pathlib import Path
 import yaml
 import httpx
+import random
+import os
 from fastapi import HTTPException, UploadFile
 
 
@@ -16,14 +18,84 @@ RETRIEVAL_CONFIG = config["retrieval_methods"]
 TIMEOUT = config.get("timeout", 60)
 RETRY_CONFIG = config.get("retry", {"max_attempts": 3, "delay_seconds": 1})
 
+# Mock mode flag - set to True to use mock data instead of real API calls
+USE_MOCK_DATA = False
 
-def _make_request(method_name: str, image: UploadFile, top_k: int):
+# Cache for outfit names to avoid reading directory multiple times
+_OUTFIT_NAMES_CACHE = None
+
+
+def _get_available_outfit_names():
+    """
+    Get list of available outfit names from the 2d directory.
+    Returns outfit names without the .png extension.
+    """
+    global _OUTFIT_NAMES_CACHE
+    
+    if _OUTFIT_NAMES_CACHE is not None:
+        return _OUTFIT_NAMES_CACHE
+    
+    # Path to 2d images directory
+    data_2d_path = Path(__file__).parent.parent / "data" / "2d"
+    
+    outfit_names = []
+    if data_2d_path.exists():
+        for file in data_2d_path.iterdir():
+            if file.is_file() and file.suffix == ".png":
+                # Remove .png extension to get outfit name
+                outfit_names.append(file.stem)
+    
+    # Cache the results
+    _OUTFIT_NAMES_CACHE = outfit_names
+    print(f"[MOCK] Loaded {len(outfit_names)} outfit names from {data_2d_path}")
+    
+    return outfit_names
+
+
+def generate_mock_results(top_k: int, method_name: str = "mock") -> list:
+    """
+    Generate mock retrieval results with names matching those in app/data/2d/
+    
+    Args:
+        top_k: Number of results to generate
+        method_name: Name of the method (for logging)
+    
+    Returns:
+        List of dicts with format [{"name": str, "score": float}]
+    """
+    outfit_names = _get_available_outfit_names()
+    
+    if not outfit_names:
+        print(f"[{method_name.upper()}] WARNING - No outfit names found, using placeholder data")
+        outfit_names = [f"outfit_{i}" for i in range(100)]
+    
+    # Randomly select outfit names (without replacement if possible)
+    num_to_select = min(top_k, len(outfit_names))
+    selected_names = random.sample(outfit_names, num_to_select)
+    
+    # Generate results with descending scores
+    results = []
+    for i, name in enumerate(selected_names):
+        # Generate scores in descending order (0.95 to 0.50)
+        score = 0.95 - (i * 0.45 / max(1, top_k - 1))
+        results.append({
+            "name": name,
+            "score": round(score, 4)
+        })
+    
+    print(f"[{method_name.upper()}] Generated {len(results)} mock results")
+    return results
+
+
+def _make_request(method_name: str, image_content: bytes, filename: str, content_type: str, top_k: int):
     """
     Generic function to make HTTP request to a retrieval method endpoint.
     
     Args:
         method_name: Name of the method in config (clip, image_edit, vlm, aesthetic)
-        image: Uploaded image file
+        image_content: Image file content as bytes
+        filename: Original filename
+        content_type: MIME type of the image
         top_k: Number of results to retrieve
     
     Returns:
@@ -39,14 +111,15 @@ def _make_request(method_name: str, image: UploadFile, top_k: int):
     url = f"{method_config['url']}{method_config['endpoint']}"
     
     print(f"[{method_name.upper()}] Calling endpoint: {url}")
-    print(f"[{method_name.upper()}] Parameters - image: {image.filename}, top_k: {top_k}")
+    print(f"[{method_name.upper()}] Parameters - image: {filename}, top_k: {top_k}")
     
     try:
-        # Reset file pointer to beginning
-        image.file.seek(0)
+        # Create BytesIO object from content
+        import io
+        image_file = io.BytesIO(image_content)
         
         # Prepare multipart form data
-        files = {"image": (image.filename, image.file, image.content_type)}
+        files = {"image": (filename, image_file, content_type)}
         data = {"top_k": top_k}
         
         # Make HTTP request with retry logic
@@ -96,29 +169,37 @@ def _make_request(method_name: str, image: UploadFile, top_k: int):
         )
 
 
-def get_clip_results(image: UploadFile, top_k: int):
+def get_clip_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
     Retrieve using naive CLIP embeddings and vector database.
     """
-    return _make_request("clip", image, top_k)
+    if mock:
+        return generate_mock_results(top_k, "clip")
+    return _make_request("clip", image_content, filename, content_type, top_k)
 
 
-def get_image_edit_results(image: UploadFile, top_k: int):
+def get_image_edit_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
     Retrieve using image edit model.
     """
-    return _make_request("image_edit", image, top_k)
+    if mock:
+        return generate_mock_results(top_k, "image_edit")
+    return _make_request("image_edit", image_content, filename, content_type, top_k)
 
 
-def get_vlm_results(image: UploadFile, top_k: int):
+def get_vlm_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
     Retrieve using Vision-Language Model.
     """
-    return _make_request("vlm", image, top_k)
+    if mock:
+        return generate_mock_results(top_k, "vlm")
+    return _make_request("vlm", image_content, filename, content_type, top_k)
 
 
-def get_aes_results(image: UploadFile, top_k: int):
+def get_aes_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
     Retrieve using aesthetic predictor.
     """
-    return _make_request("aesthetic", image, top_k)
+    if mock:
+        return generate_mock_results(top_k, "aesthetic")
+    return _make_request("aesthetic", image_content, filename, content_type, top_k)
