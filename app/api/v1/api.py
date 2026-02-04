@@ -9,6 +9,7 @@ from app.api.v1.endpoints import neg_pe_clip_ep
 from app.api.v1.endpoints import image_edit_ep
 from app.api.v1.endpoints import aesthetic_ep
 from app.api.v1.endpoints import asr_ep
+from app.api.v1.endpoints import experiment_ep
 
 
 api_router = APIRouter()
@@ -18,3 +19,4 @@ api_router = APIRouter()
 # api_router.include_router(vlm_ep.router, prefix="/retrieval", tags=["retrieval"])
 # api_router.include_router(vector_db_ep.router, prefix="/retrieval", tags=["retrieval"])
 api_router.include_router(all_methods_ep.router, prefix="/retrieval", tags=["retrieval"])
+api_router.include_router(experiment_ep.router, tags=["study"])
