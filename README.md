@@ -155,6 +155,13 @@ Example response:
 - Content-Type: `application/json`
 - Purpose: Append a single participant payload to an on-disk JSONL file (append-only).
 
+Methods:
+
+- `Image Editing`
+- `Vision Language Model`
+- `CLIP Model`
+- `Asthetic Model`
+
 Request body:
 
 ```json
@@ -162,12 +169,12 @@ Request body:
   "participantId": "uuid-123",
   "timestamp": "2026-02-04T10:22:31Z",
   "responses": [
-    { "methodId": "A", "selectedRank": 0 },
-    { "methodId": "B", "selectedRank": 2 },
-    { "methodId": "C", "selectedRank": 1 },
-    { "methodId": "D", "selectedRank": 3 }
+    { "methodId": "Image Editing", "selectedRank": 0, "viewCounts": [0, 2, 0, 1, 0] },
+    { "methodId": "Vision Language Model", "selectedRank": 2, "viewCounts": [1, 0, 2, 0, 0] },
+    { "methodId": "CLIP Model", "selectedRank": 1, "viewCounts": [0, 1, 0, 0, 0] },
+    { "methodId": "Asthetic Model", "selectedRank": 3, "viewCounts": [0, 0, 0, 3, 1] }
   ],
-  "finalWinnerMethodId": "C"
+  "finalWinnerMethodId": "CLIP Model"
 }
 ```
 
@@ -187,57 +194,8 @@ Response:
 Notes:
 
 - `selectedRank` is **0-based** (0..`num_outfits-1`).
+- `viewCounts` is optional. If provided, it must be a list of length `num_outfits` where each entry is the number of times the participant clicked the "View" button for that outfit index.
 - Duplicate `methodId` entries in `responses` return HTTP 400.
-
-### Get aggregated study score
-
-- Endpoint: `POST /study/score`
-- Content-Type: `application/json`
-- Purpose: Read all stored payloads and compute per-method aggregated scores.
-
-Request body:
-
-```json
-{
-  "methods": ["A", "B", "C", "D"],
-  "alpha": 0.6,
-  "num_outfits": 5
-}
-```
-
-Response shape (per method):
-
-- `first_stage_counts`: counts of selected outfit indices
-- `first_stage_proportions`: normalized counts (divided by total participants)
-- `stage1_mrr`: mean reciprocal rank on stage 1
-- `final_choice_count`: how many participants picked this method as final winner
-- `stage2_winrate`: final_choice_count / total_participants
-- `final_score = alpha * stage1_mrr + (1 - alpha) * stage2_winrate`
-
-Example response (truncated):
-
-```json
-{
-  "methods": {
-    "A": {
-      "first_stage_counts": {"0": 2, "1": 1},
-      "first_stage_proportions": {"0": 0.6667, "1": 0.3333},
-      "stage1_mrr": 0.8333,
-      "final_choice_count": 1,
-      "stage2_winrate": 0.3333,
-      "final_score": 0.6333,
-      "alpha": 0.6
-    }
-  },
-  "summary": {
-    "total_participants": 3,
-    "ranked_methods": ["A", "B", "C", "D"],
-    "alpha": 0.6,
-    "num_outfits": 5,
-    "storage_path": "<cwd>/data/user_study_responses.jsonl"
-  }
-}
-```
 
 Storage path behavior:
 
