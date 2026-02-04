@@ -29,57 +29,6 @@ async def lifespan(app: FastAPI):
 
     print("[START] Loading models...")
 
-    #  ---------- Jina ----------
-    # print("[START] Loading Jina Model ...")
-    # ModelRegistry.get("jina-v4")
-
-    #  ---------- PE ----------
-    # print("[START] Loading Perception Model ...")
-    # ModelRegistry.get("pe")
-    
-    # ---------- Qwen3 ----------
-    # print("[START] Loading Qwen3 ...")
-    # ModelRegistry.get("vlm")
-
-    #ModelRegistry.get("qwen_reranker")
-    #  ---------- PE Matcher ----------
-    # print("[START] Loading PE Matcher ...")
-    # ModelRegistry.get("pe_clip_matcher")
-
-    # ---------- Diffusion ----------
-    # print("[START] Loading Diffusion ...")
-    # ModelRegistry.register(
-    #     name="diffusion",
-    #     model=DiffusionModel(),
-    # )
-
-    # ---------- VQVAE ----------
-    # print("[START] Loading VQVAE Model ...")
-    # ModelRegistry.register(
-    #     name="vqvae",
-    #     model=VQVAEModel(),
-    # )
-
-    # ---------- Flux ----------
-    print("[START] Loading Flux Image Edit Model ...")
-    ModelRegistry.register(
-        name="image_edit_flux",
-        model=ImageEditFlux(),
-    )
-    ModelRegistry.get("image_edit_flux")
-
-    # ---------- Vector DB ----------
-    # global vector_db
-    
-    vector_db = VectorDatabase(
-        embedding_model="pe",
-        use_gpu=False,  # set False if you prefer CPU
-        index_path="app/data/indexes/pe_clothes.index",            # optional explicit paths
-        metadata_path="app/data/indexes/pe_clothes.index.meta.json",
-        data_dir="app/data/2d",                            # where to build from if missing
-        auto_prepare=True,                                 # triggers ensure_ready()
-    )
-    app.state.vector_db = vector_db
     print("[START] Models loaded")
     print("[START] Backend started")
 
