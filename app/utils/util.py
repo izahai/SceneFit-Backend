@@ -9,6 +9,7 @@ from pathlib import Path
 from PIL import Image
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+MAIN_PREFIX = "https://wifelier-melita-soapiest.ngrok-free.dev/"
 
 _PROMPT_CONFIG_PATH = Path("app/config/prompts.yaml")
 _CLOTHES_JSON = Path("app/data/clothes.json")
@@ -133,7 +134,7 @@ def load_images_from_folder(
 
     return images
 
-def load_str_images_from_folder(folder: str):
+def load_str_images_from_folder(folder: str | Path) -> List[Path]:
     if not folder.exists():
         raise FileNotFoundError(folder)
 
@@ -141,10 +142,27 @@ def load_str_images_from_folder(folder: str):
         p for p in folder.iterdir()
         if p.suffix.lower() in {".png", ".jpg", ".jpeg"}
     ]
+    
+
+def convert_filename_to_url(filename: str) -> str:
+    """
+    Convert a local filename to a URL path for accessing via StaticFiles.
+
+    Args:
+        filename: Local filename (e.g., "app/data/2d/outfit1.png")
+
+    Returns:
+        URL path (e.g., "/images/outfit1.png")
+    """
+    
+    url = MAIN_PREFIX + f"images/{filename}"
+    return url
 
 if __name__ == "__main__":
     # Test cropping function
-    test_image_path = BASE_DIR / "app/data/edited_image/17.jpg"
-    with Image.open(test_image_path) as img:
-        cropped = crop_clothes_region(img, keep_square=True)
-        cropped.show()
+    # test_image_path = BASE_DIR / "app/data/edited_image/17.jpg"
+    # with Image.open(test_image_path) as img:
+    #     cropped = crop_clothes_region(img, keep_square=True)
+    #     cropped.show()
+    image_name = 'avatars_0ea0469c16cd4cf1be30b26b37b4f6e7.png'
+    print(convert_filename_to_url(image_name))
