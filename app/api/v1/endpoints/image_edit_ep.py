@@ -67,7 +67,7 @@ def retrieve_clothes_image_edit(
     # -------------------------------------------------
     # 2. Get GPT edited images
     # -------------------------------------------------
-    pref_text = preference_text or convert_speech_to_text(preference_audio)
+    pref_text = preference_text or convert_speech_to_text(preference_audio) if preference_audio else ""
     print(f"[image_edit_ep] Preference text: {pref_text}")
 
     edit_result = None
@@ -136,7 +136,7 @@ def retrieve_clothes_image_edit_flux(
     # -------------------------------------------------
     # 2. Get outfit suggestion from remote VLM service
     # -------------------------------------------------
-    pref_text = preference_text or convert_speech_to_text(preference_audio)
+    pref_text = preference_text or convert_speech_to_text(preference_audio) if preference_audio else ""
     print(f"[image_edit_ep] Preference text: {pref_text}")
     
     outfit_desc = get_outfit_suggestion_remote(bg_path, preference_text=pref_text)
