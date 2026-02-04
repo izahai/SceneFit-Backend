@@ -20,6 +20,10 @@ DEFAULT_JSONL_PATH = os.path.join(DEFAULT_DATA_DIR, "user_study_responses.jsonl"
 class UnityMethodResponse(BaseModel):
     methodId: str
     selectedRank: int = Field(..., description="0-based index into the method's 5 outfits (0..4 by default)")
+    viewCounts: Optional[List[int]] = Field(
+        None,
+        description="Optional per-outfit counts of 'View' button clicks (length == num_outfits).",
+    )
 
 
 class UnityParticipantPayload(BaseModel):
@@ -30,9 +34,22 @@ class UnityParticipantPayload(BaseModel):
 
 
 class StudyScoreQuery(BaseModel):
-    methods: List[str] = Field(..., description="Method ids, e.g. ['A','B','C','D']")
+    # Hard-coded method ids/names for this study. Kept as a field so the
+    # frontend can omit it or the backend can validate it.
+    methods: Optional[List[str]] = Field(
+        None,
+        description="Optional override. If omitted, backend uses the study's fixed method names.",
+    )
     alpha: float = Field(0.6, ge=0.0, le=1.0)
     num_outfits: int = Field(5, ge=1)
+
+
+STUDY_METHODS = [
+    "Image Editing",
+    "Vision Language Model",
+    "CLIP Model",
+    "Asthetic Model",
+]
 
 
 @router.post("/study/response")
@@ -72,12 +89,8 @@ def get_study_score(query: StudyScoreQuery) -> Dict[str, Any]:
             },
         }
 
-    result = score_methods(
-        query.methods,
-        payloads,
-        alpha=query.alpha,
-        num_outfits=query.num_outfits,
-    )
+    methods = query.methods or STUDY_METHODS
+    result = score_methods(methods, payloads, alpha=query.alpha, num_outfits=query.num_outfits)
 
     result.setdefault("summary", {})
     result["summary"].update({
