@@ -8,4 +8,4 @@ from app.api.v1.endpoints import vlm_ep
 api_router = APIRouter()
 
 
-api_router.include_router(vlm_ep.router, prefix="/vlm", tags=["vlm"])
+api_router.include_router(vlm_ep.router, prefix="/retrieval", tags=["vlm"])
