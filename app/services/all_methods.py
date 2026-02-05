@@ -5,6 +5,7 @@ import yaml
 import httpx
 import random
 import os
+from app.services.post_processing import shuffle_retrieval_results
 from fastapi import HTTPException, UploadFile
 
 
@@ -18,11 +19,23 @@ RETRIEVAL_CONFIG = config["retrieval_methods"]
 TIMEOUT = config.get("timeout", 60)
 RETRY_CONFIG = config.get("retry", {"max_attempts": 3, "delay_seconds": 1})
 
+# Oversampling: ask upstream for more items than requested to allow better shuffle diversity.
+OVERSAMPLE_FACTOR = int(os.getenv("SCENEFIT_OVERSAMPLE_FACTOR", "20"))
+MAX_REQUEST_TOP_K = int(os.getenv("SCENEFIT_MAX_REQUEST_TOP_K", "100"))
+
 # Mock mode flag - set to True to use mock data instead of real API calls
 USE_MOCK_DATA = False
 
 # Cache for outfit names to avoid reading directory multiple times
 _OUTFIT_NAMES_CACHE = None
+
+
+def _get_request_top_k(top_k: int) -> int:
+    """Compute how many items to request upstream for better shuffle diversity."""
+    if top_k <= 0:
+        return 0
+    oversampled = top_k * max(1, OVERSAMPLE_FACTOR)
+    return min(MAX_REQUEST_TOP_K, max(top_k, oversampled))
 
 
 def _get_available_outfit_names():
@@ -173,33 +186,65 @@ def get_clip_results(image_content: bytes, filename: str, content_type: str, top
     """
     Retrieve using naive CLIP embeddings and vector database.
     """
+    request_top_k = _get_request_top_k(top_k)
     if mock:
-        return generate_mock_results(top_k, "clip")
-    return _make_request("clip", image_content, filename, content_type, top_k)
+        results = generate_mock_results(request_top_k, "clip")
+    else:
+        try:
+            results = _make_request("clip", image_content, filename, content_type, request_top_k)
+        except Exception as exc:  # Fallback to mock if the request fails
+            print(f"[CLIP] Falling back to mock results: {str(exc)[:120]}")
+            results = generate_mock_results(request_top_k, "clip")
+
+    return shuffle_retrieval_results(results, top_k) if isinstance(results, list) else results
 
 
 def get_image_edit_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
     Retrieve using image edit model.
     """
+    request_top_k = _get_request_top_k(top_k)
     if mock:
-        return generate_mock_results(top_k, "image_edit")
-    return _make_request("image_edit", image_content, filename, content_type, top_k)
+        results = generate_mock_results(request_top_k, "image_edit")
+    else:
+        try:
+            results = _make_request("image_edit", image_content, filename, content_type, request_top_k)
+        except Exception as exc:  # Fallback to mock if the request fails
+            print(f"[IMAGE_EDIT] Falling back to mock results: {str(exc)[:120]}")
+            results = generate_mock_results(request_top_k, "image_edit")
+
+    return shuffle_retrieval_results(results, top_k) if isinstance(results, list) else results
 
 
 def get_vlm_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
     Retrieve using Vision-Language Model.
     """
+    request_top_k = _get_request_top_k(top_k)
     if mock:
-        return generate_mock_results(top_k, "vlm")
-    return _make_request("vlm", image_content, filename, content_type, top_k)
+        results = generate_mock_results(request_top_k, "vlm")
+    else:
+        try:
+            results = _make_request("vlm", image_content, filename, content_type, request_top_k)
+        except Exception as exc:  # Fallback to mock if the request fails
+            print(f"[VLM] Falling back to mock results: {str(exc)[:120]}")
+            results = generate_mock_results(request_top_k, "vlm")
+
+    return shuffle_retrieval_results(results, top_k) if isinstance(results, list) else results
 
 
 def get_aes_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
     Retrieve using aesthetic predictor.
     """
+    request_top_k = _get_request_top_k(top_k)
     if mock:
-        return generate_mock_results(top_k, "aesthetic")
-    return _make_request("aesthetic", image_content, filename, content_type, top_k)
+        results = generate_mock_results(request_top_k, "aesthetic")
+    else:
+        try:
+            results = _make_request("aesthetic", image_content, filename, content_type, request_top_k)
+        except Exception as exc:  # Fallback to mock if the request fails
+            print(f"[AESTHETIC] Falling back to mock results: {str(exc)[:120]}")
+            results = generate_mock_results(request_top_k, "aesthetic")
+
+    return shuffle_retrieval_results(results, top_k) if isinstance(results, list) else results
