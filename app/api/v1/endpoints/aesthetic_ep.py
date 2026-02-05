@@ -65,7 +65,7 @@ def score_outfits(rg_head, bg_path: Path, top_k: int = 5, batch_size: int = 300)
 def retrieve_best_fit_aesthetic(
     image: UploadFile = File(...),
     top_k: int = Form(5),
-    batch_size: int = Form(300),
+    batch_size: int = Form(150),
 ):
     bg_path = _save_bg_upload(image)
     model = ModelRegistry.get("aesthetic")
