@@ -7,7 +7,7 @@ import random
 import os
 from app.services.post_processing import shuffle_retrieval_results
 from fastapi import HTTPException, UploadFile
-
+from app.utils.util import convert_filename_to_url
 
 # Load configuration
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "retrieval_methods.yaml"
@@ -93,7 +93,8 @@ def generate_mock_results(top_k: int, method_name: str = "mock") -> list:
         score = 0.95 - (i * 0.45 / max(1, top_k - 1))
         results.append({
             "name": name,
-            "score": round(score, 4)
+            "score": round(score, 4),
+            "image_url": convert_filename_to_url(name),
         })
     
     print(f"[{method_name.upper()}] Generated {len(results)} mock results")
