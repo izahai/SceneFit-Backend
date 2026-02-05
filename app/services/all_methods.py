@@ -5,6 +5,7 @@ import yaml
 import httpx
 import random
 import os
+import time
 from app.services.post_processing import shuffle_retrieval_results
 from fastapi import HTTPException, UploadFile
 from app.utils.util import convert_filename_to_url
@@ -189,6 +190,8 @@ def get_clip_results(image_content: bytes, filename: str, content_type: str, top
     Retrieve using naive CLIP embeddings and vector database.
     """
     request_top_k = _get_request_top_k(top_k)
+    start = time.perf_counter()
+    fell_back = False
     if mock:
         results = generate_mock_results(request_top_k, "clip")
     else:
@@ -197,6 +200,11 @@ def get_clip_results(image_content: bytes, filename: str, content_type: str, top
         except Exception as exc:  # Fallback to mock if the request fails
             print(f"[CLIP] Falling back to mock results: {str(exc)[:120]}")
             results = generate_mock_results(request_top_k, "clip")
+            fell_back = True
+
+    elapsed = time.perf_counter() - start
+    mode = "mock" if mock or fell_back else "real"
+    print(f"[CLIP] Completed in {elapsed:.3f}s (mode={mode}, request_top_k={request_top_k}, return_top_k={top_k})")
 
     return shuffle_retrieval_results(results, top_k) if isinstance(results, list) else results
 
@@ -206,6 +214,8 @@ def get_image_edit_results(image_content: bytes, filename: str, content_type: st
     Retrieve using image edit model.
     """
     request_top_k = _get_request_top_k(top_k)
+    start = time.perf_counter()
+    fell_back = False
     if mock:
         results = generate_mock_results(request_top_k, "image_edit")
     else:
@@ -214,6 +224,11 @@ def get_image_edit_results(image_content: bytes, filename: str, content_type: st
         except Exception as exc:  # Fallback to mock if the request fails
             print(f"[IMAGE_EDIT] Falling back to mock results: {str(exc)[:120]}")
             results = generate_mock_results(request_top_k, "image_edit")
+            fell_back = True
+
+    elapsed = time.perf_counter() - start
+    mode = "mock" if mock or fell_back else "real"
+    print(f"[IMAGE_EDIT] Completed in {elapsed:.3f}s (mode={mode}, request_top_k={request_top_k}, return_top_k={top_k})")
 
     return shuffle_retrieval_results(results, top_k) if isinstance(results, list) else results
 
@@ -223,6 +238,8 @@ def get_vlm_results(image_content: bytes, filename: str, content_type: str, top_
     Retrieve using Vision-Language Model.
     """
     request_top_k = _get_request_top_k(top_k)
+    start = time.perf_counter()
+    fell_back = False
     if mock:
         results = generate_mock_results(request_top_k, "vlm")
     else:
@@ -231,6 +248,11 @@ def get_vlm_results(image_content: bytes, filename: str, content_type: str, top_
         except Exception as exc:  # Fallback to mock if the request fails
             print(f"[VLM] Falling back to mock results: {str(exc)[:120]}")
             results = generate_mock_results(request_top_k, "vlm")
+            fell_back = True
+
+    elapsed = time.perf_counter() - start
+    mode = "mock" if mock or fell_back else "real"
+    print(f"[VLM] Completed in {elapsed:.3f}s (mode={mode}, request_top_k={request_top_k}, return_top_k={top_k})")
 
     return shuffle_retrieval_results(results, top_k) if isinstance(results, list) else results
 
@@ -240,6 +262,8 @@ def get_aes_results(image_content: bytes, filename: str, content_type: str, top_
     Retrieve using aesthetic predictor.
     """
     request_top_k = _get_request_top_k(top_k)
+    start = time.perf_counter()
+    fell_back = False
     if mock:
         results = generate_mock_results(request_top_k, "aesthetic")
     else:
@@ -248,5 +272,10 @@ def get_aes_results(image_content: bytes, filename: str, content_type: str, top_
         except Exception as exc:  # Fallback to mock if the request fails
             print(f"[AESTHETIC] Falling back to mock results: {str(exc)[:120]}")
             results = generate_mock_results(request_top_k, "aesthetic")
+            fell_back = True
+
+    elapsed = time.perf_counter() - start
+    mode = "mock" if mock or fell_back else "real"
+    print(f"[AESTHETIC] Completed in {elapsed:.3f}s (mode={mode}, request_top_k={request_top_k}, return_top_k={top_k})")
 
     return shuffle_retrieval_results(results, top_k) if isinstance(results, list) else results
