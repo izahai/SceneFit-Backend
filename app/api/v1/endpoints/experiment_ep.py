@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -20,37 +21,76 @@ DEFAULT_JSONL_PATH = os.path.join(DEFAULT_DATA_DIR, "user_study_responses.jsonl"
 class UnityMethodResponse(BaseModel):
     methodId: str
     selectedRank: int = Field(..., description="0-based index into the method's 5 outfits (0..4 by default)")
+    viewCounts: Optional[List[int]] = Field(
+        None,
+        description="Optional per-outfit counts of 'View' button clicks (length == num_outfits).",
+    )
 
 
 class UnityParticipantPayload(BaseModel):
+    # Stored representation only (client does not send participantId)
     participantId: str
-    timestamp: Optional[str] = None
+    responses: List[UnityMethodResponse]
+    finalWinnerMethodId: str
+
+
+class UnityParticipantSubmission(BaseModel):
+    """Client submission format for /study/response (JSON body).
+
+    The server generates participantId and writes a UnityParticipantPayload to storage.
+    """
+
     responses: List[UnityMethodResponse]
     finalWinnerMethodId: str
 
 
 class StudyScoreQuery(BaseModel):
-    methods: List[str] = Field(..., description="Method ids, e.g. ['A','B','C','D']")
+    # Hard-coded method ids/names for this study. Kept as a field so the
+    # frontend can omit it or the backend can validate it.
+    methods: Optional[List[str]] = Field(
+        None,
+        description="Optional override. If omitted, backend uses the study's fixed method names.",
+    )
     alpha: float = Field(0.6, ge=0.0, le=1.0)
     num_outfits: int = Field(5, ge=1)
 
 
-@router.post("/study/response")
-def submit_study_response(payload: UnityParticipantPayload) -> Dict[str, Any]:
-    """Ingest a single participant response from Unity.
+STUDY_METHODS = [
+    "Image Editing",
+    "Vision Language Model",
+    "CLIP Model",
+    "Asthetic Model",
+]
 
-    This endpoint stores the raw participant payload as JSONL (append-only).
+
+@router.post("/study/response")
+def submit_study_response(
+    submission: UnityParticipantSubmission,
+) -> Dict[str, Any]:
+    """Ingest a single participant response from Unity (application/json).
+
+    Contract:
+    - Client sends JSON body with {responses: [...], finalWinnerMethodId: str}.
+    - Server auto-generates a participantId (UUID4).
+    - No timestamp is required/stored.
     """
+    data = UnityParticipantPayload(
+        participantId=str(uuid4()),
+        responses=submission.responses,
+        finalWinnerMethodId=submission.finalWinnerMethodId,
+    )
+
     # Basic validation: ensure methodIds are unique per participant
-    method_ids = [r.methodId for r in payload.responses]
+    method_ids = [r.methodId for r in data.responses]
     if len(set(method_ids)) != len(method_ids):
         raise HTTPException(status_code=400, detail="Duplicate methodId in responses")
 
     # Store the payload exactly (as dict) so we can re-score later.
-    meta = append_response(payload.model_dump(), file_path=DEFAULT_JSONL_PATH)
+    meta = append_response(data.model_dump(), file_path=DEFAULT_JSONL_PATH)
 
     return {
         "ok": True,
+        "participantId": data.participantId,
         "stored": meta,
     }
 
@@ -72,12 +112,8 @@ def get_study_score(query: StudyScoreQuery) -> Dict[str, Any]:
             },
         }
 
-    result = score_methods(
-        query.methods,
-        payloads,
-        alpha=query.alpha,
-        num_outfits=query.num_outfits,
-    )
+    methods = query.methods or STUDY_METHODS
+    result = score_methods(methods, payloads, alpha=query.alpha, num_outfits=query.num_outfits)
 
     result.setdefault("summary", {})
     result["summary"].update({

@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 import json
 
 def score_methods(methods: List[str],
@@ -18,27 +18,40 @@ def score_methods(methods: List[str],
 	for m in methods:
 		per_method[m] = {
 			'first_stage_counts': {},  # outfit_index -> count
+			'view_counts': {i: 0 for i in range(num_outfits)},  # outfit_index -> total view clicks
 			'final_choice_count': 0,
 			'mrr_sum': 0.0,  # sum of reciprocal ranks for this method
 		}
 
 	# Process each participant. Support multiple input shapes including the
-	# Unity payload format:
+	# Unity payload format (selectedRank is 0-based):
 	# {
-	#   "participantId": "uuid",
-	#   "timestamp": "...",
-	#   "responses": [ {"methodId": "A", "selectedRank": 1}, ... ],
-	#   "finalWinnerMethodId": "C"
+	#   "participantId": "<generated-by-server>",
+	#   "responses": [ {"methodId": "Image Editing", "selectedRank": 0, "viewCounts": [0,1,0,0,0]}, ... ],
+	#   "finalWinnerMethodId": "CLIP Model"
 	# }
 	for resp in participant_responses:
 		method_choices = None
+		views_map: Dict[str, List[int]] = {}
 		if isinstance(resp, dict) and isinstance(resp.get('responses'), (list, tuple)):
 			method_choices = {}
 			for r in resp.get('responses', []):
 				if not isinstance(r, dict):
 					continue
-				mid = r.get('methodId') or r.get('method_id')
-				sel = r.get('selectedRank') or r.get('selected_rank') or r.get('selected')
+				# Don't use truthiness for these fields because selectedRank can be 0.
+				mid = r.get('methodId')
+				if mid is None:
+					mid = r.get('method_id')
+
+				sel = r.get('selectedRank')
+				if sel is None:
+					sel = r.get('selected_rank')
+				if sel is None:
+					sel = r.get('selected')
+
+				vcounts = r.get('viewCounts')
+				if vcounts is None:
+					vcounts = r.get('view_counts')
 				if mid is None or sel is None:
 					continue
 				try:
@@ -48,6 +61,18 @@ def score_methods(methods: List[str],
 				# selectedRank is expected 0-based (0..num_outfits-1)
 				if 0 <= sr < num_outfits:
 					method_choices[str(mid)] = sr
+					# Optional: viewCounts for visualization/scoring telemetry
+					if isinstance(vcounts, (list, tuple)):
+						vals: List[int] = []
+						for x in list(vcounts)[:num_outfits]:
+							try:
+								vals.append(max(0, int(x)))
+							except Exception:
+								vals.append(0)
+							# pad if shorter
+						while len(vals) < num_outfits:
+							vals.append(0)
+						views_map[str(mid)] = vals
 				else:
 					# out-of-range ranks are ignored (contribute 0)
 					continue
@@ -65,7 +90,7 @@ def score_methods(methods: List[str],
 		if method_choices is None:
 			method_choices = resp.get('method_choices')
 
-	# normalize method_choices: allow list (ordered) or dict
+		# normalize method_choices: allow list (ordered) or dict
 		choices_map: Dict[str, int] = {}
 		if isinstance(method_choices, dict):
 			# Expect keys are method ids and values are chosen indices
@@ -96,6 +121,12 @@ def score_methods(methods: List[str],
 			counts = per_method[m]['first_stage_counts']
 			counts[chosen_idx] = counts.get(chosen_idx, 0) + 1
 
+			# Aggregate view counts (if provided)
+			if m in views_map:
+				vc = views_map[m]
+				for i, c in enumerate(vc[:num_outfits]):
+					per_method[m]['view_counts'][i] = per_method[m]['view_counts'].get(i, 0) + int(c)
+
 			# Stage 1: accumulate reciprocal rank for MRR. If chosen_idx is
 			# invalid (e.g. out of range or non-int), treat as no contribution (0).
 			try:
@@ -112,7 +143,7 @@ def score_methods(methods: List[str],
 		if final_choice_method and final_choice_method in per_method:
 			per_method[final_choice_method]['final_choice_count'] += 1
 
-	# Build output with proportions and CI
+	# Build output
 	out = {'methods': {}, 'summary': {'total_participants': total_participants}}
 	ranked = []
 	for m in methods:
@@ -141,6 +172,8 @@ def score_methods(methods: List[str],
 		out['methods'][m] = {
 			'first_stage_counts': {str(k): v for k, v in sorted(first_counts.items())},
 			'first_stage_proportions': first_props,
+			'view_counts': {str(k): v for k, v in sorted(entry['view_counts'].items())},
+			'view_rate': (sum(entry['view_counts'].values()) / total_participants) if total_participants > 0 else 0.0,
 			'stage1_mrr': mrr,
 			'final_choice_count': final_k,
 			'stage2_winrate': winrate,
@@ -157,41 +190,43 @@ def score_methods(methods: List[str],
 
 
 if __name__ == '__main__':
-	# Unity-style smoke test payloads (1-based ranks)
-	methods = ['A', 'B', 'C', 'D']
+	# Unity-style smoke test payloads (0-based selectedRank)
+	methods = [
+		"Image Editing",
+		"Vision Language Model",
+		"CLIP Model",
+		"Asthetic Model",
+	]
 	participant_payloads = [
 		{
 			"participantId": "uuid-123",
-			"timestamp": "2026-02-04T10:22:31Z",
 			"responses": [
-				{"methodId": "A", "selectedRank": 0},
-				{"methodId": "B", "selectedRank": 2},
-				{"methodId": "C", "selectedRank": 1},
-				{"methodId": "D", "selectedRank": 3},
+				{"methodId": "Image Editing", "selectedRank": 0, "viewCounts": [0, 2, 0, 1, 0]},
+				{"methodId": "Vision Language Model", "selectedRank": 2, "viewCounts": [1, 0, 2, 0, 0]},
+				{"methodId": "CLIP Model", "selectedRank": 1, "viewCounts": [0, 1, 0, 0, 0]},
+				{"methodId": "Asthetic Model", "selectedRank": 3, "viewCounts": [0, 0, 0, 3, 1]},
 			],
-			"finalWinnerMethodId": "C",
+			"finalWinnerMethodId": "CLIP Model",
 		},
 		{
 			"participantId": "uuid-456",
-			"timestamp": "2026-02-04T10:25:10Z",
 			"responses": [
-				{"methodId": "A", "selectedRank": 1},
-				{"methodId": "B", "selectedRank": 0},
-				{"methodId": "C", "selectedRank": 3},
-				{"methodId": "D", "selectedRank": 2},
+				{"methodId": "Image Editing", "selectedRank": 1, "viewCounts": [0, 1, 0, 0, 0]},
+				{"methodId": "Vision Language Model", "selectedRank": 0, "viewCounts": [2, 0, 1, 0, 0]},
+				{"methodId": "CLIP Model", "selectedRank": 3, "viewCounts": [0, 0, 0, 2, 0]},
+				{"methodId": "Asthetic Model", "selectedRank": 2, "viewCounts": [0, 0, 1, 0, 0]},
 			],
-			"finalWinnerMethodId": "B",
+			"finalWinnerMethodId": "Vision Language Model",
 		},
 		{
 			"participantId": "uuid-789",
-			"timestamp": "2026-02-04T10:28:55Z",
 			"responses": [
-				{"methodId": "A", "selectedRank": 0},
-				{"methodId": "B", "selectedRank": 1},
-				{"methodId": "C", "selectedRank": 4},
-				{"methodId": "D", "selectedRank": 3},
+				{"methodId": "Image Editing", "selectedRank": 0, "viewCounts": [1, 0, 0, 0, 0]},
+				{"methodId": "Vision Language Model", "selectedRank": 1, "viewCounts": [0, 2, 0, 0, 0]},
+				{"methodId": "CLIP Model", "selectedRank": 4, "viewCounts": [0, 0, 0, 0, 1]},
+				{"methodId": "Asthetic Model", "selectedRank": 3, "viewCounts": [0, 0, 0, 1, 0]},
 			],
-			"finalWinnerMethodId": "A",
+			"finalWinnerMethodId": "Image Editing",
 		},
 	]
 
