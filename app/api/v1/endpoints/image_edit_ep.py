@@ -108,7 +108,7 @@ def retrieve_clothes_image_edit(
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
-            "image_url": convert_filename_to_url(s.get("metadata")),
+            "image_url": convert_filename_to_url(Path(s.get("metadata" or "")).name),
         }
         for s in scores[:top_k]
     ]
@@ -182,7 +182,7 @@ def retrieve_clothes_image_edit_flux(
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
-            "image_url": convert_filename_to_url(s.get("metadata")),
+            "image_url": convert_filename_to_url(Path(s.get("metadata" or "")).name),
         }
         for s in scores[:top_k]
     ]
@@ -245,7 +245,7 @@ def apply_feedback_image_edit_flux(
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
-            "image_url": convert_filename_to_url(s.get("metadata")),
+            "image_url": convert_filename_to_url(Path(s.get("metadata" or "")).name),
         }
         for s in scores[:top_k]
     ]
@@ -304,7 +304,7 @@ def apply_feedback_image_edit(
         {
             "name": _extract_outfit_name(s.get("metadata")),
             "score": s["score"],
-            "image_url": convert_filename_to_url(s.get("metadata")),
+            "image_url": convert_filename_to_url(Path(s.get("metadata" or "")).name),
         }
         for s in scores[:top_k]
     ]
@@ -352,7 +352,7 @@ def retrieve_all_backgrounds(
                     {
                         "name": _extract_outfit_name(s.get("metadata")),
                         "score": s["score"],
-                        "image_url": convert_filename_to_url(s.get("metadata")),
+                        "image_url": convert_filename_to_url(Path(s.get("metadata" or "")).name),
                     }
                     for s in scores[:top_k]
                 ],
