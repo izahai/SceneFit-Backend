@@ -3,12 +3,6 @@ import io
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from app.api.v1.endpoints.pe_clip_ep import retrieve_scene_outfit
 from app.services.all_methods import *
-from app.services.all_methods_safe import (
-    get_clip_results_safe,
-    get_image_edit_results_safe,
-    get_vlm_results_safe,
-    get_aes_results_safe,
-)
 
 router = APIRouter()
 
@@ -35,10 +29,10 @@ async def retrieve_all_methods(
     
     # Execute all retrieval methods in parallel with error handling
     image_edit_results, vlm_results, clip_results, aes_results = await asyncio.gather(
-        asyncio.to_thread(get_image_edit_results_safe, image_content, filename, content_type, top_k, False),
-        asyncio.to_thread(get_vlm_results_safe, image_content, filename, content_type, top_k, False),
-        asyncio.to_thread(get_clip_results_safe, image_content, filename, content_type, top_k, False),
-        asyncio.to_thread(get_aes_results_safe, image_content, filename, content_type, top_k, False),
+        asyncio.to_thread(get_image_edit_results, image_content, filename, content_type, top_k, False),
+        asyncio.to_thread(get_vlm_results, image_content, filename, content_type, top_k, False),
+        asyncio.to_thread(get_clip_results, image_content, filename, content_type, top_k, False),
+        asyncio.to_thread(get_aes_results, image_content, filename, content_type, top_k, False),
         return_exceptions=True
     )
     
