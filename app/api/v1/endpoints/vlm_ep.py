@@ -14,6 +14,7 @@ from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
 from app.services.clothes_captions import generate_clothes_captions_json
 from app.api.v1.endpoints.aesthetic_ep import score_outfits
+from app.utils.util import convert_filename_to_url
 router = APIRouter()
 
 BG_DIR = Path("app/data/bg")
@@ -339,8 +340,15 @@ def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
     # REMOVE non-serializable fields
     for c in reranked:
         c.pop("image", None)
-    
-    return reranked
+    formatted_results = [
+        {
+            "name": c["outfit_name"],
+            "score": float(c["score"]),
+            "image_url": convert_filename_to_url(c["outfit_name"]),
+        }
+        for c in reranked
+    ]
+    return formatted_results
 
 
 @router.post("/vlm-caption-feedback")
