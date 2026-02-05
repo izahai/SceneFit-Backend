@@ -147,6 +147,7 @@ class PEClipMatcher:
             falls back to brute-force (original baseline)
         """
         if query_emb is None:
+            print("Building query embedding from descriptions...")
             query_emb = self._build_query_embedding(descriptions)
 
         # ---------- FAISS PATH ----------

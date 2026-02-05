@@ -110,7 +110,7 @@ def _build_query_embedding(
     domain_suffix: str = ", 3D rendered character model, game asset style"
 ):
     w_semantic, w_scene, w_img = weights
-
+    print(color_outfits)
     color_outfits = [desc + domain_suffix for desc in color_outfits]
 
     # Encode
