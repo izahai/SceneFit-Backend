@@ -91,10 +91,11 @@ def generate_mock_results(top_k: int, method_name: str = "mock") -> list:
     for i, name in enumerate(selected_names):
         # Generate scores in descending order (0.95 to 0.50)
         score = 0.95 - (i * 0.45 / max(1, top_k - 1))
+        name_with_ext = name if name.lower().endswith(".png") else f"{name}.png"
         results.append({
-            "name": name,
+            "name": name_with_ext,
             "score": round(score, 4),
-            "image_url": convert_filename_to_url(name),
+            "image_url": convert_filename_to_url(name_with_ext),
         })
     
     print(f"[{method_name.upper()}] Generated {len(results)} mock results")
