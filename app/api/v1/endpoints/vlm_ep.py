@@ -150,7 +150,114 @@ def _rank_clothes_by_feedback(descriptions: list[str],
         fb_text=fb_text,
         top_k=top_k,
     )
+def _diversify_with_mmr(
+    candidates: list[dict],
+    faiss_meta: dict,
+    lambda_param: float = 0.5,
+    top_k: int = 10
+) -> list[dict]:
+    """
+    Select diverse candidates using Maximal Marginal Relevance.
+    Uses pre-computed embeddings from FAISS metadata.
+    
+    lambda_param: 0 = max diversity, 1 = max relevance
+    """
+    if len(candidates) <= top_k:
+        return candidates
+    
+    # Get pre-computed embeddings for candidates
+    filename_to_idx = {name: idx for idx, name in enumerate(faiss_meta["filenames"])}
+    all_embeddings = torch.from_numpy(faiss_meta["embeddings"]).float()
+    
+    candidate_embs = []
+    for c in candidates:
+        idx = filename_to_idx[c["outfit_name"]]
+        candidate_embs.append(all_embeddings[idx])
+    
+    candidate_embs = torch.stack(candidate_embs)  # (N, D)
+    
+    selected = []
+    selected_embs = []
+    remaining_indices = list(range(len(candidates)))
+    
+    # Select first item (highest relevance)
+    first_idx = 0
+    selected.append(candidates[first_idx])
+    selected_embs.append(candidate_embs[first_idx])
+    remaining_indices.remove(first_idx)
+    
+    # Iteratively select diverse items
+    while len(selected) < top_k and remaining_indices:
+        best_score = -float('inf')
+        best_idx = None
+        
+        for idx in remaining_indices:
+            # Relevance to query (already computed by FAISS)
+            relevance = candidates[idx]["similarity"]
+            
+            # Max similarity to already selected items
+            if selected_embs:
+                selected_tensor = torch.stack(selected_embs)
+                # Cosine similarity (embeddings are already normalized)
+                similarity_to_selected = (candidate_embs[idx] @ selected_tensor.T).max().item()
+                diversity = 1 - similarity_to_selected
+            else:
+                diversity = 1.0
+            
+            # MMR score
+            mmr_score = lambda_param * relevance + (1 - lambda_param) * diversity
+            
+            if mmr_score > best_score:
+                best_score = mmr_score
+                best_idx = idx
+        
+        selected.append(candidates[best_idx])
+        selected_embs.append(candidate_embs[best_idx])
+        remaining_indices.remove(best_idx)
+    
+    return selected
+from sklearn.cluster import KMeans
 
+def _diversify_with_clustering(
+    candidates: list[dict],
+    faiss_meta: dict,
+    n_clusters: int = 5,
+    samples_per_cluster: int = 2
+) -> list[dict]:
+    """
+    Cluster candidates and sample from each cluster.
+    Uses pre-computed embeddings.
+    """
+    if len(candidates) <= n_clusters:
+        return candidates
+    
+    # Get pre-computed embeddings
+    filename_to_idx = {name: idx for idx, name in enumerate(faiss_meta["filenames"])}
+    all_embeddings = faiss_meta["embeddings"]
+    
+    candidate_embs = np.array([
+        all_embeddings[filename_to_idx[c["outfit_name"]]]
+        for c in candidates
+    ])
+    
+    # Cluster
+    kmeans = KMeans(n_clusters=min(n_clusters, len(candidates)), random_state=42)
+    cluster_labels = kmeans.fit_predict(candidate_embs)
+    
+    # Sample from each cluster
+    diverse_results = []
+    for cluster_id in range(kmeans.n_clusters):
+        cluster_candidates = [
+            candidates[i] for i in range(len(candidates))
+            if cluster_labels[i] == cluster_id
+        ]
+        # Sort by relevance within cluster
+        cluster_candidates.sort(key=lambda x: x["similarity"], reverse=True)
+        diverse_results.extend(cluster_candidates[:samples_per_cluster])
+    
+    # Sort final results by relevance
+    diverse_results.sort(key=lambda x: x["similarity"], reverse=True)
+    return diverse_results
 @router.post("/vlm-generated-clothes-captions")
 def get_vlm_descriptions(
     image: UploadFile = File(...),
@@ -276,70 +383,79 @@ def get_best_clothes_by_tournament(image: UploadFile = File(...)):
         "background_caption": background_caption,
         "best_clothes": best_clothes,
     }
-
 @router.post("/vlm-faiss-composed-retrieval")
-def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
+def composed_retrieval(
+    image: UploadFile = File(...), 
+    top_k: int = 10,
+    diversity_method: str = "mmr",  # "mmr", "cluster", or "none"
+    lambda_param: float = 0.6
+):
     bg_path = _save_bg_upload(image)
-
     vlm = ModelRegistry.get("vlm")
-
-    # -------------------------
-    # Extract query signals
-    # -------------------------
+    
     signals = vlm.extract_query_signals(str(bg_path))
     print("Got 0")
     ModelRegistry.release("vlm")
     print("Got 1")
     matcher = ModelRegistry.get("pe_clip_matcher")
     print("Got 2")
-    # -------------------------
-    # Background image embedding
-    # -------------------------
     bg_img = Image.open(bg_path).convert("RGB")
-    bg_emb = matcher.encode_image([bg_img])  # (1, D)
-
-    # -------------------------
-    # Build fused query
-    # -------------------------
+    bg_emb = matcher.encode_image([bg_img])
+    
     query_emb = _build_query_embedding(
         signals["color_outfits"],
         signals["scene_caption"],
         bg_emb,
         matcher,
     )
-    print("Query Embedding Shape: ",query_emb.shape)
     
-    print("Got 3")
-
-    # -------------------------
-    # FAISS retrieval (coarse)  
-    # -------------------------
+    # Retrieve MORE candidates than needed (2-3x)
+    initial_k = top_k * 3
     candidates = matcher.match_clothes(
         query_emb=query_emb,
-        top_k=top_k,
+        top_k=initial_k,
     )
+    
+    # Apply diversity strategy (NO IMAGE LOADING NEEDED!)
+    if diversity_method == "mmr":
+        candidates = _diversify_with_mmr(
+            candidates, 
+            matcher.faiss_meta,  # ← Pass metadata with embeddings
+            lambda_param, 
+            top_k
+        )
+    elif diversity_method == "cluster":
+        candidates = _diversify_with_clustering(
+            candidates, 
+            matcher.faiss_meta,
+            n_clusters=5, 
+            samples_per_cluster=2
+        )
+    else:
+        candidates = candidates[:top_k]
+    print("Got 3")
+    
     ModelRegistry.release("pe_clip_matcher")
+    
+    # NOW load images only for reranking
     print("Got 4")
     reranker = ModelRegistry.get("qwen_reranker")
     print("Got 5")
-    # Attach captions + images for reranker
     for c in candidates:
         c["image"] = Image.open(
             Path("app/data/2d") / f"{c['outfit_name']}"
         ).convert("RGB")
-        #c["caption"] = c.get("caption", "")
-
-    # -------------------------
-    # Qwen3-VL reranking (fine)
-    # -------------------------
+    
     reranked = reranker.rerank(
         query_text=signals["scene_caption"],
         candidates=candidates,
     )
     ModelRegistry.release("qwen_reranker")
-    # REMOVE non-serializable fields
+    
+    # Format results
     for c in reranked:
         c.pop("image", None)
+    
     formatted_results = [
         {
             "name": c["outfit_name"],
@@ -348,6 +464,7 @@ def composed_retrieval(image: UploadFile = File(...), top_k: int = 10):
         }
         for c in reranked
     ]
+    
     return formatted_results
 
 

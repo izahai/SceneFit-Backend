@@ -14,7 +14,7 @@ from app.models.pe_clip_matcher import PEClipMatcher
 @torch.no_grad()
 def main():
     device = "cuda"
-    batch_size = 32   # reduce to 16 if GPU is small
+    batch_size = 32
 
     clothes_dir = Path("app/data/2d")
     output_dir = Path("app/data/faiss")
@@ -56,16 +56,18 @@ def main():
 
     faiss.write_index(index, str(output_dir / "clothes_image.index"))
 
-    # -------- METADATA --------
+    # -------- METADATA (NOW WITH EMBEDDINGS) --------
     with open(output_dir / "clothes_image_meta.pkl", "wb") as f:
         pickle.dump(
             {
-                "filenames": [p.name for p in image_paths]
+                "filenames": [p.name for p in image_paths],
+                "embeddings": image_embs,  # ← NEW: Store normalized embeddings
             },
             f,
         )
 
     print(f"[OK] Indexed {len(image_paths)} clothing images.")
+    print(f"[OK] Saved embeddings shape: {image_embs.shape}")
 
 
 if __name__ == "__main__":
