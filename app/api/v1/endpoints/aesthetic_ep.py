@@ -70,5 +70,6 @@ def retrieve_best_fit_aesthetic(
     bg_path = _save_bg_upload(image)
     model = ModelRegistry.get("aesthetic")
     results = score_outfits(model, bg_path, top_k, batch_size)['results']
-    results['image_url'] = convert_filename_to_url(results["name"])
+    for res in results:
+        res['image_url'] = convert_filename_to_url(res["name"])
     return results
