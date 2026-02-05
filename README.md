@@ -135,15 +135,74 @@ Example response:
 
 ```jsonc
 {
-   "image-edit": [{
+   "imageEdit": [{
       "name": "name1",
-      "score": "0.24"
+      "score": 0.24,
+      "image_url": "http://localhost:8000/images/{name1}.jpg",
    }],
    "vlm": [],
    "clip": [],
-   "aes": []
+   "aesthetic": []
 }
 ```
+
+
+## User Study API
+
+### Submit a participant response
+
+- Endpoint: `POST /study/response`
+- Content-Type: `application/json`
+- Purpose: Append a single participant payload to an on-disk JSONL file (append-only).
+
+Methods:
+
+- `Image Editing`
+- `Vision Language Model`
+- `CLIP Model`
+- `Asthetic Model`
+
+Request body:
+
+The backend auto-generates a `participantId` for each submission. No timestamp is required.
+
+
+```json
+{
+  "responses": [
+    { "methodId": "Image Editing", "selectedRank": 0, "viewCounts": [0, 2, 0, 1, 0] },
+    { "methodId": "Vision Language Model", "selectedRank": 2, "viewCounts": [1, 0, 2, 0, 0] },
+    { "methodId": "CLIP Model", "selectedRank": 1, "viewCounts": [0, 1, 0, 0, 0] },
+    { "methodId": "Asthetic Model", "selectedRank": 3, "viewCounts": [0, 0, 0, 3, 1] }
+  ],
+  "finalWinnerMethodId": "CLIP Model"
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "participantId": "<generated-uuid>",
+  "stored": {
+    "path": "data/user_study_responses.jsonl",
+    "bytes": 1234,
+    "appended": true
+  }
+}
+```
+
+Notes:
+
+- `selectedRank` is **0-based** (0..`num_outfits-1`).
+- `viewCounts` is optional. If provided, it must be a list of length `num_outfits` where each entry is the number of times the participant clicked the "View" button for that outfit index.
+- Duplicate `methodId` entries in `responses` return HTTP 400.
+
+Storage path behavior:
+
+- The JSONL file is stored at `<cwd>/data/user_study_responses.jsonl` (relative to where you start the server).
+- If no payloads exist yet, `/study/score` returns `methods: {}` and `total_participants: 0`.
 
 
 
@@ -151,3 +210,7 @@ Example response:
 - Expose as `POST /api/v1/retrieval/<method-name>`; accept `image` plus `top_k` and method-specific knobs.
 - Return the shared envelope `{ method, count, results }` with required result keys `outfit_name`, `outfit_path`, `score`. Add optional fields clearly (e.g., captions, paths) and gate them with flags like `return_metadata`.
 - Avoid embedding images in responses; return file paths. Persist uploads under `app/uploads/` and method outputs in `app/data/` or `app/outputs/`.
+
+
+## Data
+[Google Drive](https://drive.google.com/drive/folders/1Vii6WOEMJgGIVk5DmnA9ciK4llKHuDlQ?fbclid=IwY2xjawPuqwFleHRuA2FlbQIxMABicmlkETE4Wk5weUw1a2JObU9VODU3c3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHulNNSWtU4sttSuIjrjC0R8HTWYoUpwc8azMm8M6m0sLGfT4hw9tLZewWPx9_aem_6tlkSC-HOwumuWwDc2Tk2A)

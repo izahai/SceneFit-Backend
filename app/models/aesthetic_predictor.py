@@ -57,6 +57,6 @@ class AestheticPredictor:
         names, images = zip(*items)
         embeddings = self.clip_model.encode_image(list(images))
         preds = self.head(embeddings).squeeze(-1).tolist()
-        results = [{"name_clothes": n, "aesthetic_score": p} for n, p in zip(names, preds)]
-        results.sort(key=lambda x: x["aesthetic_score"], reverse=True)
+        results = [{"name": n, "score": p} for n, p in zip(names, preds)]
+        results.sort(key=lambda x: x["score"], reverse=True)
         return results

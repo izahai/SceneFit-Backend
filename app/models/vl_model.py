@@ -31,6 +31,7 @@ class VLModel:
         self.clothes_caption = load_prompt_by_key("clothes_caption")
         self.bg_caption = load_prompt_by_key("bg_caption")
         self.choose_best_clothes_prompt = load_prompt_by_key("choose_best_clothes")
+        self.suggest_outfit_prompt = load_prompt_by_key("suggest_outfit")
 
     # -------------------------
     # Core generation helper
@@ -201,5 +202,32 @@ class VLModel:
             "scene_caption": scene_caption,
         }
     
+    def suggest_outfit_from_bg(self, bg_path: str, preference_text: str | None = None, feedback_text: str | None = None) -> str:
+        """
+        Suggest an outfit given a background image
+        """
+        image = Image.open(bg_path).convert("RGB")
+        image = self.resize_image(image)
+
+        prompt = self.suggest_outfit_prompt
+        if preference_text:
+            prompt += f" Consider these preferences: {preference_text}."
+        if feedback_text:
+            prompt += f" Also consider this feedback: {feedback_text}."
+            
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": prompt},
+                ],
+            },
+        ]
+
+        output = self._generate(messages)
+
+        return output.strip()
+
 
 
