@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Request, UploadFile, File, Form
 
 from app.services.img_processor import compose_2d_on_background
 from app.services.model_registry import ModelRegistry
+from app.utils.util import convert_filename_to_url
 
 router = APIRouter()
 
@@ -90,7 +91,8 @@ def retrieve_scene_outfit(
         name = Path(item["metadata"]).name if item.get("metadata") else f"image_{item['id']}"
         results.append({
             "name": name,
-            "score": item["score"]
+            "score": item["score"],
+            "image_url": convert_filename_to_url(Path(item.get("metadata") or "").name),
         })
     
     return results
