@@ -9,7 +9,7 @@ import time
 import torch
 import torch.nn.functional as F
 import gc
-
+import numpy as np
 from app.services.model_registry import ModelRegistry
 from app.utils.util import load_str_images_from_folder
 from app.services.clothes_captions import generate_clothes_captions_json
