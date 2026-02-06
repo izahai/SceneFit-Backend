@@ -5,8 +5,10 @@ import yaml
 import httpx
 import random
 import os
+import time
+from app.services.post_processing import shuffle_retrieval_results
 from fastapi import HTTPException, UploadFile
-
+from app.utils.util import convert_filename_to_url
 
 # Load configuration
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "retrieval_methods.yaml"
@@ -18,11 +20,81 @@ RETRIEVAL_CONFIG = config["retrieval_methods"]
 TIMEOUT = config.get("timeout", 60)
 RETRY_CONFIG = config.get("retry", {"max_attempts": 3, "delay_seconds": 1})
 
+# Oversampling: ask upstream for more items than requested to allow better shuffle diversity.
+OVERSAMPLE_FACTOR = int(os.getenv("SCENEFIT_OVERSAMPLE_FACTOR", "20"))
+MAX_REQUEST_TOP_K = int(os.getenv("SCENEFIT_MAX_REQUEST_TOP_K", "100"))
+
 # Mock mode flag - set to True to use mock data instead of real API calls
 USE_MOCK_DATA = False
 
 # Cache for outfit names to avoid reading directory multiple times
 _OUTFIT_NAMES_CACHE = None
+
+
+def _strip_png_extension(filename: str) -> str:
+    """Remove a trailing .png extension from a filename."""
+    return filename[:-4] if isinstance(filename, str) and filename.lower().endswith(".png") else filename
+
+
+def _ensure_png_extension(filename: str) -> str:
+    """Guarantee the filename ends with .png for URL generation."""
+    if not isinstance(filename, str):
+        return filename
+    return filename if filename.lower().endswith(".png") else f"{filename}.png"
+
+
+def _normalize_result_item(item: dict) -> dict | None:
+    """Coerce a single result into {name, score, image_url} with required extension rules."""
+    if not isinstance(item, dict):
+        return None
+
+    raw_name = item.get("name") or item.get("image_name") or item.get("file_name")
+    if not raw_name:
+        return None
+
+    filename_with_ext = _ensure_png_extension(raw_name)
+    clean_name = _strip_png_extension(raw_name)
+
+    score_val = item.get("score")
+    try:
+        score = float(score_val) if score_val is not None else 0.0
+    except (TypeError, ValueError):
+        score = 0.0
+
+    existing_url = item.get("image_url")
+    image_url = existing_url if isinstance(existing_url, str) and existing_url.lower().endswith(".png") else convert_filename_to_url(filename_with_ext)
+
+    return {
+        "name": clean_name,
+        "score": score,
+        "image_url": image_url,
+    }
+
+
+def _normalize_and_shuffle_results(raw_results, top_k: int):
+    """Normalize remote/mock payloads and enforce the required response shape."""
+    if isinstance(raw_results, dict) and raw_results.get("error"):
+        return raw_results
+
+    results_list = raw_results.get("results") if isinstance(raw_results, dict) and "results" in raw_results else raw_results
+    if not isinstance(results_list, list):
+        return raw_results
+
+    normalized = []
+    for item in results_list:
+        normalized_item = _normalize_result_item(item)
+        if normalized_item is not None:
+            normalized.append(normalized_item)
+
+    return shuffle_retrieval_results(normalized, top_k)
+
+
+def _get_request_top_k(top_k: int) -> int:
+    """Compute how many items to request upstream for better shuffle diversity."""
+    if top_k <= 0:
+        return 0
+    oversampled = top_k * max(1, OVERSAMPLE_FACTOR)
+    return min(MAX_REQUEST_TOP_K, max(top_k, oversampled))
 
 
 def _get_available_outfit_names():
@@ -61,7 +133,7 @@ def generate_mock_results(top_k: int, method_name: str = "mock") -> list:
         method_name: Name of the method (for logging)
     
     Returns:
-        List of dicts with format [{"name": str, "score": float}]
+        List of dicts with format [{"name": str, "score": float, "image_url": str}]
     """
     outfit_names = _get_available_outfit_names()
     
@@ -76,28 +148,31 @@ def generate_mock_results(top_k: int, method_name: str = "mock") -> list:
     # Generate results with descending scores
     results = []
     for i, name in enumerate(selected_names):
-        # Generate scores in descending order (0.95 to 0.50)
         score = 0.95 - (i * 0.45 / max(1, top_k - 1))
+        filename_with_ext = _ensure_png_extension(name)
         results.append({
-            "name": name,
-            "score": round(score, 4)
+            "name": _strip_png_extension(name),
+            "score": round(score, 4),
+            "image_url": convert_filename_to_url(filename_with_ext),
         })
     
     print(f"[{method_name.upper()}] Generated {len(results)} mock results")
     return results
 
 
-def _make_request(method_name: str, image: UploadFile, top_k: int):
+def _make_request(method_name: str, image_content: bytes, filename: str, content_type: str, top_k: int):
     """
     Generic function to make HTTP request to a retrieval method endpoint.
     
     Args:
         method_name: Name of the method in config (clip, image_edit, vlm, aesthetic)
-        image: Uploaded image file
+        image_content: Image file content as bytes
+        filename: Original filename
+        content_type: MIME type of the image
         top_k: Number of results to retrieve
     
     Returns:
-        List of results in format [{"name": str, "score": float}]
+        List of results in format [{"name": str, "score": float, "image_url": str}]
     """
     if method_name not in RETRIEVAL_CONFIG:
         raise HTTPException(
@@ -109,14 +184,15 @@ def _make_request(method_name: str, image: UploadFile, top_k: int):
     url = f"{method_config['url']}{method_config['endpoint']}"
     
     print(f"[{method_name.upper()}] Calling endpoint: {url}")
-    print(f"[{method_name.upper()}] Parameters - image: {image.filename}, top_k: {top_k}")
+    print(f"[{method_name.upper()}] Parameters - image: {filename}, top_k: {top_k}")
     
     try:
-        # Reset file pointer to beginning
-        image.file.seek(0)
+        # Create BytesIO object from content
+        import io
+        image_file = io.BytesIO(image_content)
         
         # Prepare multipart form data
-        files = {"image": (image.filename, image.file, image.content_type)}
+        files = {"image": (filename, image_file, content_type)}
         data = {"top_k": top_k}
         
         # Make HTTP request with retry logic
@@ -166,37 +242,97 @@ def _make_request(method_name: str, image: UploadFile, top_k: int):
         )
 
 
-def get_clip_results(image: UploadFile, top_k: int, mock=True):
+def get_clip_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
-    Retrieve using naive CLIP embeddings and vector database.
+    Retrieve using naive CLIP embeddings and vector database, returning normalized name/score/image_url entries.
     """
+    request_top_k = _get_request_top_k(top_k)
+    start = time.perf_counter()
+    fell_back = False
     if mock:
-        return generate_mock_results(top_k, "clip")
-    return _make_request("clip", image, top_k)
+        results = generate_mock_results(request_top_k, "clip")
+    else:
+        try:
+            results = _make_request("clip", image_content, filename, content_type, request_top_k)
+        except Exception as exc:  # Fallback to mock if the request fails
+            print(f"[CLIP] Falling back to mock results: {str(exc)[:120]}")
+            results = generate_mock_results(request_top_k, "clip")
+            fell_back = True
+
+    elapsed = time.perf_counter() - start
+    mode = "mock" if mock or fell_back else "real"
+    print(f"[CLIP] Completed in {elapsed:.3f}s (mode={mode}, request_top_k={request_top_k}, return_top_k={top_k})")
+
+    return _normalize_and_shuffle_results(results, top_k)
 
 
-def get_image_edit_results(image: UploadFile, top_k: int, mock=True):
+def get_image_edit_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
-    Retrieve using image edit model.
+    Retrieve using image edit model, returning normalized name/score/image_url entries.
     """
+    request_top_k = _get_request_top_k(top_k)
+    start = time.perf_counter()
+    fell_back = False
     if mock:
-        return generate_mock_results(top_k, "image_edit")
-    return _make_request("image_edit", image, top_k)
+        results = generate_mock_results(request_top_k, "image_edit")
+    else:
+        try:
+            results = _make_request("image_edit", image_content, filename, content_type, request_top_k)
+        except Exception as exc:  # Fallback to mock if the request fails
+            print(f"[IMAGE_EDIT] Falling back to mock results: {str(exc)[:120]}")
+            results = generate_mock_results(request_top_k, "image_edit")
+            fell_back = True
+
+    elapsed = time.perf_counter() - start
+    mode = "mock" if mock or fell_back else "real"
+    print(f"[IMAGE_EDIT] Completed in {elapsed:.3f}s (mode={mode}, request_top_k={request_top_k}, return_top_k={top_k})")
+
+    return _normalize_and_shuffle_results(results, top_k)
 
 
-def get_vlm_results(image: UploadFile, top_k: int, mock=True):
+def get_vlm_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
-    Retrieve using Vision-Language Model.
+    Retrieve using Vision-Language Model, returning normalized name/score/image_url entries.
     """
+    request_top_k = _get_request_top_k(top_k)
+    start = time.perf_counter()
+    fell_back = False
     if mock:
-        return generate_mock_results(top_k, "vlm")
-    return _make_request("vlm", image, top_k)
+        results = generate_mock_results(request_top_k, "vlm")
+    else:
+        try:
+            results = _make_request("vlm", image_content, filename, content_type, request_top_k)
+        except Exception as exc:  # Fallback to mock if the request fails
+            print(f"[VLM] Falling back to mock results: {str(exc)[:120]}")
+            results = generate_mock_results(request_top_k, "vlm")
+            fell_back = True
+
+    elapsed = time.perf_counter() - start
+    mode = "mock" if mock or fell_back else "real"
+    print(f"[VLM] Completed in {elapsed:.3f}s (mode={mode}, request_top_k={request_top_k}, return_top_k={top_k})")
+
+    return _normalize_and_shuffle_results(results, top_k)
 
 
-def get_aes_results(image: UploadFile, top_k: int, mock=True):
+def get_aes_results(image_content: bytes, filename: str, content_type: str, top_k: int, mock=True):
     """
-    Retrieve using aesthetic predictor.
+    Retrieve using aesthetic predictor, returning normalized name/score/image_url entries.
     """
+    request_top_k = _get_request_top_k(top_k)
+    start = time.perf_counter()
+    fell_back = False
     if mock:
-        return generate_mock_results(top_k, "aesthetic")
-    return _make_request("aesthetic", image, top_k)
+        results = generate_mock_results(request_top_k, "aesthetic")
+    else:
+        try:
+            results = _make_request("aesthetic", image_content, filename, content_type, request_top_k)
+        except Exception as exc:  # Fallback to mock if the request fails
+            print(f"[AESTHETIC] Falling back to mock results: {str(exc)[:120]}")
+            results = generate_mock_results(request_top_k, "aesthetic")
+            fell_back = True
+
+    elapsed = time.perf_counter() - start
+    mode = "mock" if mock or fell_back else "real"
+    print(f"[AESTHETIC] Completed in {elapsed:.3f}s (mode={mode}, request_top_k={request_top_k}, return_top_k={top_k})")
+
+    return _normalize_and_shuffle_results(results, top_k)

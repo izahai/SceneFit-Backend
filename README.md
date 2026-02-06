@@ -147,6 +147,64 @@ Example response:
 ```
 
 
+## User Study API
+
+### Submit a participant response
+
+- Endpoint: `POST /study/response`
+- Content-Type: `application/json`
+- Purpose: Append a single participant payload to an on-disk JSONL file (append-only).
+
+Methods:
+
+- `Image Editing`
+- `Vision Language Model`
+- `CLIP Model`
+- `Asthetic Model`
+
+Request body:
+
+The backend auto-generates a `participantId` for each submission. No timestamp is required.
+
+
+```json
+{
+  "responses": [
+    { "methodId": "Image Editing", "selectedRank": 0, "viewCounts": [0, 2, 0, 1, 0] },
+    { "methodId": "Vision Language Model", "selectedRank": 2, "viewCounts": [1, 0, 2, 0, 0] },
+    { "methodId": "CLIP Model", "selectedRank": 1, "viewCounts": [0, 1, 0, 0, 0] },
+    { "methodId": "Asthetic Model", "selectedRank": 3, "viewCounts": [0, 0, 0, 3, 1] }
+  ],
+  "finalWinnerMethodId": "CLIP Model"
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "participantId": "<generated-uuid>",
+  "stored": {
+    "path": "data/user_study_responses.jsonl",
+    "bytes": 1234,
+    "appended": true
+  }
+}
+```
+
+Notes:
+
+- `selectedRank` is **0-based** (0..`num_outfits-1`).
+- `viewCounts` is optional. If provided, it must be a list of length `num_outfits` where each entry is the number of times the participant clicked the "View" button for that outfit index.
+- Duplicate `methodId` entries in `responses` return HTTP 400.
+
+Storage path behavior:
+
+- The JSONL file is stored at `<cwd>/data/user_study_responses.jsonl` (relative to where you start the server).
+- If no payloads exist yet, `/study/score` returns `methods: {}` and `total_participants: 0`.
+
+
 
 **Contributor Guide (add a new retrieval endpoint)**
 - Expose as `POST /api/v1/retrieval/<method-name>`; accept `image` plus `top_k` and method-specific knobs.

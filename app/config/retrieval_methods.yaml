@@ -13,7 +13,7 @@ retrieval_methods:
     description: "Image edit model retrieval"
   
   vlm:
-    url: "https://triadelphous-supersaintly-millicent.ngrok-free.dev/"
+    url: "https://adriane-unsensualized-squeakily.ngrok-free.dev/"
     endpoint: "api/v1/retrieval/vlm-faiss-composed-retrieval"
     description: "Vision-Language Model retrieval"
   
