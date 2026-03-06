@@ -155,29 +155,49 @@ Example response:
 - Content-Type: `application/json`
 - Purpose: Append a single participant payload to an on-disk JSONL file (append-only).
 
-Methods:
-
-- `Image Editing`
-- `Vision Language Model`
-- `CLIP Model`
-- `Asthetic Model`
-
 Request body:
 
-The backend auto-generates a `participantId` for each submission. No timestamp is required.
-
+The client sends the list of per-method responses (each containing the method's top-k image URLs and the URL of the selected image), and the name of the overall winning method.
+The backend auto-generates a `participantId` (UUID4). Method names are free-form strings; they are **not** hard-coded on the backend.
 
 ```json
 {
   "responses": [
-    { "methodId": "Image Editing", "selectedRank": 0, "viewCounts": [0, 2, 0, 1, 0] },
-    { "methodId": "Vision Language Model", "selectedRank": 2, "viewCounts": [1, 0, 2, 0, 0] },
-    { "methodId": "CLIP Model", "selectedRank": 1, "viewCounts": [0, 1, 0, 0, 0] },
-    { "methodId": "Asthetic Model", "selectedRank": 3, "viewCounts": [0, 0, 0, 3, 1] }
+    {
+      "methodName": "Image Editing",
+      "imgURLs": ["http://host/img/ie0.jpg", "http://host/img/ie1.jpg", "http://host/img/ie2.jpg", "http://host/img/ie3.jpg", "http://host/img/ie4.jpg"],
+      "selectedURL": "http://host/img/ie2.jpg",
+      "viewCounts": [1, 0, 3, 0, 1]
+    },
+    {
+      "methodName": "Vision Language Model",
+      "imgURLs": ["http://host/img/vlm0.jpg", "http://host/img/vlm1.jpg", "http://host/img/vlm2.jpg", "http://host/img/vlm3.jpg", "http://host/img/vlm4.jpg"],
+      "selectedURL": "http://host/img/vlm0.jpg",
+      "viewCounts": [2, 1, 0, 1, 0]
+    },
+    {
+      "methodName": "CLIP Model",
+      "imgURLs": ["http://host/img/clip0.jpg", "http://host/img/clip1.jpg", "http://host/img/clip2.jpg", "http://host/img/clip3.jpg", "http://host/img/clip4.jpg"],
+      "selectedURL": "http://host/img/clip1.jpg"
+    },
+    {
+      "methodName": "Asthetic Model",
+      "imgURLs": ["http://host/img/aes0.jpg", "http://host/img/aes1.jpg", "http://host/img/aes2.jpg", "http://host/img/aes3.jpg", "http://host/img/aes4.jpg"],
+      "selectedURL": "http://host/img/aes3.jpg"
+    }
   ],
-  "finalWinnerMethodId": "CLIP Model"
+  "winnerMethodName": "Vision Language Model"
 }
 ```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `responses` | `List[Object]` | ✅ | One entry per method the participant evaluated. |
+| `responses[].methodName` | `string` | ✅ | Display name / identifier of the method. |
+| `responses[].imgURLs` | `List[string]` | ✅ | Top-k image URLs that were shown for this method. |
+| `responses[].selectedURL` | `string` | ✅ | URL of the image the participant selected (must appear in `imgURLs`). |
+| `responses[].viewCounts` | `List[int]` | ❌ | Per-outfit "View" button click counts. Length should equal the number of outfits. |
+| `winnerMethodName` | `string` | ✅ | The client's chosen overall winning method. |
 
 Response:
 
@@ -186,22 +206,46 @@ Response:
   "ok": true,
   "participantId": "<generated-uuid>",
   "stored": {
-    "path": "data/user_study_responses.jsonl",
-    "bytes": 1234,
-    "appended": true
+    "file_path": "data/responses.json",
+    "entry_index": 0,
+    "receivedAt": "2026-03-06T12:00:00Z"
   }
 }
 ```
 
 Notes:
 
-- `selectedRank` is **0-based** (0..`num_outfits-1`).
+- `selectedURL` must be one of the URLs listed in the same response's `imgURLs`. The backend resolves it to a 0-based index for scoring.
+- `winnerMethodName` is the participant's overall preferred method, sent by the client.
 - `viewCounts` is optional. If provided, it must be a list of length `num_outfits` where each entry is the number of times the participant clicked the "View" button for that outfit index.
-- Duplicate `methodId` entries in `responses` return HTTP 400.
+- Duplicate `methodName` entries in `responses` return HTTP 400.
+- An empty `responses` list returns HTTP 400.
+
+### Compute aggregated scores
+
+- Endpoint: `POST /study/score`
+- Content-Type: `application/json`
+- Purpose: Score and rank all methods across stored participant responses.
+
+Request body:
+
+```json
+{
+  "alpha": 0.6,
+  "num_outfits": 5
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `alpha` | `float` | `0.6` | Weighting factor between rank score (MRR) and win rate (0.0 – 1.0). |
+| `num_outfits` | `int` | `5` | Number of outfits per method (used for rank normalisation). |
+
+> Method names are **derived automatically** from the stored responses — no need to supply them.
 
 Storage path behavior:
 
-- The JSONL file is stored at `<cwd>/data/user_study_responses.jsonl` (relative to where you start the server).
+- The JSON file is stored at `<cwd>/data/user_study_responses.json` (relative to where you start the server).
 - If no payloads exist yet, `/study/score` returns `methods: {}` and `total_participants: 0`.
 
 

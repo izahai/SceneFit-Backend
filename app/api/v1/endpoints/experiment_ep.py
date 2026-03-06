@@ -15,12 +15,16 @@ router = APIRouter()
 
 
 DEFAULT_DATA_DIR = os.path.join(os.getcwd(), "data")
-DEFAULT_JSONL_PATH = os.path.join(DEFAULT_DATA_DIR, "user_study_responses.jsonl")
+DEFAULT_JSON_PATH = os.path.join(DEFAULT_DATA_DIR, "responses.json")
 
 
 class UnityMethodResponse(BaseModel):
-    methodId: str
-    selectedRank: int = Field(..., description="0-based index into the method's 5 outfits (0..4 by default)")
+    methodName: str
+    imgURLs: List[str] = Field(
+        ...,
+        description="top-k images of the currentmethod",
+    )
+    selectedURL: str = Field(..., description="URL of the image the participant selected for this method.")
     viewCounts: Optional[List[int]] = Field(
         None,
         description="Optional per-outfit counts of 'View' button clicks (length == num_outfits).",
@@ -28,39 +32,28 @@ class UnityMethodResponse(BaseModel):
 
 
 class UnityParticipantPayload(BaseModel):
-    # Stored representation only (client does not send participantId)
+    """Stored representation (server-generated fields included)."""
     participantId: str
     responses: List[UnityMethodResponse]
-    finalWinnerMethodId: str
+    winnerMethodName: str
 
 
 class UnityParticipantSubmission(BaseModel):
     """Client submission format for /study/response (JSON body).
 
-    The server generates participantId and writes a UnityParticipantPayload to storage.
+    The client sends the list of responses (each containing the method's
+    image paths and the URL of the selected image), and the name of
+    the winning method. The server generates participantId and writes
+    a UnityParticipantPayload to storage.
     """
 
     responses: List[UnityMethodResponse]
-    finalWinnerMethodId: str
+    winnerMethodName: str
 
 
 class StudyScoreQuery(BaseModel):
-    # Hard-coded method ids/names for this study. Kept as a field so the
-    # frontend can omit it or the backend can validate it.
-    methods: Optional[List[str]] = Field(
-        None,
-        description="Optional override. If omitted, backend uses the study's fixed method names.",
-    )
     alpha: float = Field(0.6, ge=0.0, le=1.0)
     num_outfits: int = Field(5, ge=1)
-
-
-STUDY_METHODS = [
-    "Image Editing",
-    "Vision Language Model",
-    "CLIP Model",
-    "Asthetic Model",
-]
 
 
 @router.post("/study/response")
@@ -70,23 +63,26 @@ def submit_study_response(
     """Ingest a single participant response from Unity (application/json).
 
     Contract:
-    - Client sends JSON body with {responses: [...], finalWinnerMethodId: str}.
+    - Client sends JSON body with {responses: [...], winnerMethodName: str}.
     - Server auto-generates a participantId (UUID4).
-    - No timestamp is required/stored.
+    - winnerMethodName is the client's chosen overall winner.
     """
+    if not submission.responses:
+        raise HTTPException(status_code=400, detail="responses list must not be empty")
+
+    # Basic validation: ensure methodNames are unique per participant
+    method_names = [r.methodName for r in submission.responses]
+    if len(set(method_names)) != len(method_names):
+        raise HTTPException(status_code=400, detail="Duplicate methodName in responses")
+
     data = UnityParticipantPayload(
         participantId=str(uuid4()),
         responses=submission.responses,
-        finalWinnerMethodId=submission.finalWinnerMethodId,
+        winnerMethodName=submission.winnerMethodName,
     )
 
-    # Basic validation: ensure methodIds are unique per participant
-    method_ids = [r.methodId for r in data.responses]
-    if len(set(method_ids)) != len(method_ids):
-        raise HTTPException(status_code=400, detail="Duplicate methodId in responses")
-
     # Store the payload exactly (as dict) so we can re-score later.
-    meta = append_response(data.model_dump(), file_path=DEFAULT_JSONL_PATH)
+    meta = append_response(data.model_dump(), file_path=DEFAULT_JSON_PATH)
 
     return {
         "ok": True,
@@ -97,8 +93,12 @@ def submit_study_response(
 
 @router.post("/study/score")
 def get_study_score(query: StudyScoreQuery) -> Dict[str, Any]:
-    """Compute aggregated scores from all stored participant payloads."""
-    payloads = read_all_payloads(file_path=DEFAULT_JSONL_PATH)
+    """Compute aggregated scores from all stored participant payloads.
+
+    Method names are derived automatically from the stored responses —
+    no hard-coded list required.
+    """
+    payloads = read_all_payloads(file_path=DEFAULT_JSON_PATH)
 
     if not payloads:
         return {
@@ -108,18 +108,26 @@ def get_study_score(query: StudyScoreQuery) -> Dict[str, Any]:
                 "ranked_methods": [],
                 "alpha": query.alpha,
                 "num_outfits": query.num_outfits,
-                "storage_path": DEFAULT_JSONL_PATH,
+                "storage_path": DEFAULT_JSON_PATH,
             },
         }
 
-    methods = query.methods or STUDY_METHODS
+    # Collect every unique methodName that appears across all payloads
+    methods: List[str] = sorted(
+        {
+            r["methodName"]
+            for p in payloads
+            for r in p.get("responses", [])
+        }
+    )
+
     result = score_methods(methods, payloads, alpha=query.alpha, num_outfits=query.num_outfits)
 
     result.setdefault("summary", {})
     result["summary"].update({
         "alpha": query.alpha,
         "num_outfits": query.num_outfits,
-        "storage_path": DEFAULT_JSONL_PATH,
+        "storage_path": DEFAULT_JSON_PATH,
     })
 
     return result
